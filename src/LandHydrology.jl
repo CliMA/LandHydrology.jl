@@ -1,5 +1,6 @@
 module LandHydrology
 
-greet() = print("Hello World!")
+using Pkg.TOML
+include(joinpath("SoilModel", "SoilWaterParameterizations.jl"))
 
 end # module
