@@ -1,19 +1,9 @@
 module SoilWaterParameterizations
 using Printf
 
-export effective_saturation, pressure_head, hydraulic_conductivity, hydrostatic_profile, SoilWaterParams, matric_potential
+export effective_saturation, pressure_head, hydraulic_conductivity, hydrostatic_profile, matric_potential
 
-abstract type ParameterStructure{FT <: AbstractFloat} end
 
-struct SoilWaterParams{FT} <: ParameterStructure{FT}
-    ν::FT
-    vgn::FT
-    vgα::FT
-    vgm::FT
-    ksat::FT
-    θr::FT
-    S_s::FT
-end
 function matric_potential(S; vgn = vgn, vgα = vgα, vgm = vgm)
     FT = eltype(S)
     ψ_m = -((S^(-FT(1) / vgm) - FT(1)) * vgα^(-vgn))^(FT(1) / vgn)
