@@ -15,7 +15,7 @@ using DelimitedFiles
 using UnPack
 using LandHydrology.SoilWaterParameterizations
 using ArtifactWrappers
-
+using Test
 
 const FT = Float64
 
@@ -62,7 +62,7 @@ end
 
 
 @testset "Richards sand 1" begin
-    n = 60
+    n = 150
     z₀ = FT(-1.5)
     z₁ = FT(0)
     ksat = FT(34 / (3600 * 100))
@@ -73,7 +73,7 @@ end
     ν = FT(0.287)
     θl_0 = FT(0.1)
     θl_surf = FT(0.267)
-    Δt = FT(0.5)
+    Δt = FT(0.25)
     tf = FT(60 * 60 * 0.8)
     t0 = FT(0)
 
@@ -105,7 +105,7 @@ end
     prob = ODEProblem(∑tendencies!, θl, (t0, tf),p)
     sol = solve(
         prob,
-        CarpenterKennedy2N54(),
+        TsitPap8(),
         dt = Δt,
         saveat = 60 * Δt,
         progress = true,
@@ -123,34 +123,26 @@ end
     )
     datapath = get_data_folder(bonan_sand_dataset)
     data = joinpath(datapath, "sand_bonan_sp801.csv")
+    ds_bonan = readdlm(data, ',')
+    bonan_moisture = reverse(ds_bonan[:, 1])
+    bonan_z = reverse(ds_bonan[:, 2]) ./ 100.0
     
     dirname = "richards"
     path = joinpath(@__DIR__, "test", "SoilModel", dirname)
     mkpath(path)
-    ENV["GKSwstype"] = "nul"
-    import Plots
-    Plots.GRBackend()
-
-    ds_bonan = readdlm(data, ',')
-    bonan_moisture = reverse(ds_bonan[:, 1])
-    bonan_z = reverse(ds_bonan[:, 2]) ./ 100.0
-    anim = @animate for (nt, u) in enumerate(sol.u)
-        plot(
-            parent(u),parent(zc),
-            xlim = (0, 0.287),
-            ylim = (-1.5, 0),
-            title = string(string(Int(round(((nt-1)*Δt*60-t0)/60)))," min"),
-            lc = :black,
-            lw = 2,
-            ls = :dash,
-            label = "",
-            legend = :outerright,
-            m = :o,
-            xlabel = "θ(z)",
-            ylabel = "z",
-        )
-        
-        plot!(bonan_moisture, bonan_z, label = "Bonan solution, 48min", lw = 2, lc = :red)
-    end
-    gif(anim, joinpath(path, "richards_sand.gif"), fps = 10)
+    plot(bonan_moisture, bonan_z, label = "Bonan solution", lw = 2, lc = :green)    
+    plot!(
+        parent(sol.u[end]),parent(zc),
+        xlim = (0, 0.287),
+        ylim = (-1.5, 0),
+        label = "Clima solution",
+        lc = :black,
+        lw = 2,
+        ls = :dash,
+        legend = :outerright,
+        xlabel = "θ(z)",
+        ylabel = "z",
+    )
+    savefig(joinpath(path, "richards_sand.png"))
+    @test sqrt.(sum((bonan_moisture .- parent(sol.u[end])).^2.0)) < FT(0.1)
 end
