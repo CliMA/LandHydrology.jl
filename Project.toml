@@ -10,5 +10,8 @@ ClimaCore = "d414da3d-4745-48bb-8d80-42e94e092884"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 Dierckx = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
-OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 UnPack = "3a884ed6-31ef-47d7-9d2a-63182c4928ed"
+
+[compat]
+julia = "1.6"

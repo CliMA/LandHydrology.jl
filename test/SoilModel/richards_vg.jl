@@ -41,7 +41,7 @@ function compute_richards_rhs!(dθl, θl, p, top::θDirichlet,bottom::FreeDraina
     h = ψ .+ zc
     
     
-    θ_top = θl_surf
+    θ_top = top.θvalue
     S_top = effective_saturation.(θ_top; ν = ν, θr = θr)
     h_top = matric_potential(S_top; vgn = vgn, vgα = vgα, vgm = vgm)#ztop = 0
     K_top = hydraulic_conductivity(S_top; vgm = vgm, ksat = ksat)
@@ -77,7 +77,7 @@ end
     tf = FT(60 * 60 * 0.8)
     t0 = FT(0)
 
-    msp = SoilWaterParams{FT}(ν,vgn,vgα,vgm, ksat, θr, FT(1e-4))
+    msp = SoilWaterParams{FT}(ν,vgn,vgα,vgm, ksat, θr, FT(1e-3))
     bottom_bc = FreeDrainage()
     top_bc = θDirichlet(θl_surf)
     domain = Domains.IntervalDomain(z₀, z₁, x3boundary = (:bottom, :top))
@@ -105,7 +105,7 @@ end
     prob = ODEProblem(∑tendencies!, θl, (t0, tf),p)
     sol = solve(
         prob,
-        Tsit5(),
+        CarpenterKennedy2N54(),
         dt = Δt,
         saveat = 60 * Δt,
         progress = true,
