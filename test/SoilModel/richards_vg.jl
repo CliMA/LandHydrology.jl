@@ -13,6 +13,7 @@ using OrdinaryDiffEq: ODEProblem, solve, SSPRK33,Rosenbrock23, Tsit5,SSPRK432, F
 using Plots
 using DelimitedFiles
 using UnPack
+using LandHydrology
 using LandHydrology.SoilWaterParameterizations
 using ArtifactWrappers
 using Test
@@ -59,6 +60,64 @@ function compute_richards_rhs!(dθl, θl, p, top::θDirichlet,bottom::FreeDraina
     
     return @. dθl = gradf2c( If(K) * gradc2f(h))
 end
+
+
+@testset "Dirichlet as Flux BC" begin
+    n = 150
+    z₀ = FT(-1.5)
+    z₁ = FT(0)
+    ksat = FT(34 / (3600 * 100))
+    vgn = FT(3.96)
+    vgα = FT(2.7)
+    vgm = FT(1)- FT(1)/vgn
+    θr = FT(0.075)
+    ν = FT(0.287)
+    θl_0 = FT(0.1)
+
+    domain = Domains.IntervalDomain(z₀, z₁, x3boundary = (:bottom, :top))
+    mesh = Meshes.IntervalMesh(domain, nelems = n)
+    
+    cs = Spaces.CenterFiniteDifferenceSpace(mesh)
+    fs = Spaces.FaceFiniteDifferenceSpace(cs)
+    zc = Fields.coordinate_field(cs)
+    
+    
+    θl = Fields.zeros(FT, cs) .+ θl_0
+    S = effective_saturation.(θl; ν = ν, θr = θr)
+    K = hydraulic_conductivity.(S; vgm = vgm, ksat = ksat)
+    ψ = matric_potential.(S; vgn = vgn, vgα = vgα, vgm = vgm)
+    h = ψ .+ zc
+
+    θ_top = FT(0.267)
+    S_top = effective_saturation.(θ_top; ν = ν, θr = θr)
+    h_top = matric_potential(S_top; vgn = vgn, vgα = vgα, vgm = vgm)#ztop = 0
+    K_top = hydraulic_conductivity(S_top; vgm = vgm, ksat = ksat)
+    bc_ktop = Operators.SetValue(K_top)
+    #we'd do the following to get the space inside RHS
+    center_space = axes(θl)
+    dz_top = center_space.face_local_geometry.WJ[end]
+    #check why factor of 2 shows up
+    flux_top = K_top*(h_top - parent(h)[end])/(dz_top)/FT(2)
+    flux_bottom = parent(K)[1]
+    If = Operators.InterpolateC2F(;
+                                  top = bc_ktop)
+    
+
+    #original
+    gradc2f = Operators.GradientC2F(top  = Operators.SetValue(h_top))
+    gradf2c = Operators.GradientF2C(bottom = Operators.SetValue(flux_bottom)) # set value on K∇h at bottom
+    original = @. gradf2c( If(K) * gradc2f(h))
+
+    #new
+    gradc2f_new  = Operators.GradientC2F()
+    If_new = Operators.InterpolateC2F()
+    gradf2c_new = Operators.GradientF2C(top = Operators.SetValue(flux_top), bottom = Operators.SetValue(flux_bottom))
+    new = @. gradf2c_new(If_new(K)*gradc2f_new(h))
+
+    @test sum(parent(original) .== parent(new)) .== n
+    
+end
+
 
 
 @testset "Richards sand 1" begin

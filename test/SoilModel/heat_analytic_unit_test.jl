@@ -63,10 +63,8 @@ function compute_soil_heat_rhs!(dI, I, t, p, top::TDirichlet, bottom::TDirichlet
 
     gradc2f = Operators.GradientC2F(top = Operators.SetValue(Ttop), bottom = Operators.SetValue(Tbot))
     gradf2c = Operators.GradientF2C()
-    #when we have soil water in as a state variable, we will need to
-    # be consistent with having κ at faces at boundary consistent with water content at those faces!
     
-    return @. dI = gradf2c(κ * gradc2f(T))
+    return @. dI = gradf2c(κ * gradc2f(T)) # κ is just a constant here - will be center Field eventually
     
 end
 ν = 0.495
@@ -154,3 +152,89 @@ Ifinal = parent(sol.u[end])[:]
 Tfinal = temperature_from_ρe_int.(Ifinal, θ_i, ρc_s, Ref(param_set))
 MSE = mean((analytic_soln .- Tfinal) .^ 2.0)
 @test MSE < 1e-2
+
+
+@testset "Dirichlet as Flux BC" begin
+    ν = 0.495
+    ν_ss_gravel = 0.1
+    ν_ss_om = 0.1
+    ν_ss_quartz = 0.1
+    ρc_ds = 0.43314518988433487
+    κ_solid = 8.0
+    ρp = 2700.0
+    κ_sat_unfrozen = 0.57
+    κ_sat_frozen = 2.29
+    a = 0.24
+    b = 18.1
+    κ_dry_parameter = 0.053
+    sp = SoilHeatParams(
+        ν,
+        ν_ss_gravel,
+        ν_ss_om,
+        ν_ss_quartz,
+        ρc_ds,
+        κ_solid,
+        ρp,
+        κ_sat_unfrozen,
+        κ_sat_frozen,
+        a,
+        b,
+        κ_dry_parameter
+    )
+    n = 60
+    
+    # Specify the domain boundaries
+    zmax = FT(1)
+    zmin = FT(0)
+    domain = Domains.IntervalDomain(zmin, zmax, x3boundary = (:bottom, :top))
+    mesh = Meshes.IntervalMesh(domain, nelems = n)
+    
+    cs = Spaces.CenterFiniteDifferenceSpace(mesh)
+    fs = Spaces.FaceFiniteDifferenceSpace(cs)
+    zc = Fields.coordinate_field(cs)
+    
+    T = zc
+    Ttop = FT(10.0)
+    Tbottom = FT(-5.0)
+    
+
+    
+    θ_l = Fields.zeros(FT,cs) .+0.2
+    θ_i = Fields.zeros(FT,cs)
+    κ_dry = k_dry(param_set, sp)
+    S_r = relative_saturation.(θ_l, θ_i, ν)
+    kersten = kersten_number.(θ_i, S_r, Ref(sp))
+    κ_sat = saturated_thermal_conductivity.(
+        θ_l,
+        θ_i,
+        κ_sat_unfrozen,
+        κ_sat_frozen,
+    )
+    κ = thermal_conductivity.(κ_dry, kersten, κ_sat)
+   
+    gradc2f = Operators.GradientC2F(top = Operators.SetValue(Ttop), bottom = Operators.SetValue(Tbottom))
+    gradf2c = Operators.GradientF2C()
+    If = Operators.InterpolateC2F(top = Operators.Extrapolate(), bottom = Operators.Extrapolate())# not sure about this. look into case in integrated model.
+    original =  @.  gradf2c(If(κ) * gradc2f(T))
+
+
+
+    center_space = axes(T)
+    dz_top = center_space.face_local_geometry.WJ[end]
+    dz_bottom = center_space.face_local_geometry.WJ[1]
+    #check why factor of 2 shows up
+    flux_top = parent(κ)[end]*(Ttop - parent(T)[end])/(dz_top)/FT(2)
+    flux_bottom = parent(κ)[1]*(parent(T)[1]- Tbottom)/(dz_bottom)/FT(2)
+
+
+
+
+    
+    gradc2f_new  = Operators.GradientC2F()
+    If_new = Operators.InterpolateC2F()
+    gradf2c_new = Operators.GradientF2C(top = Operators.SetValue(flux_top), bottom = Operators.SetValue(flux_bottom))
+    new = @. gradf2c_new(If_new(κ)*gradc2f_new(T))
+
+    @test sum(parent(original) .== parent(new)) .== n
+
+end
