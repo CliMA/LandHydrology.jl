@@ -1,4 +1,3 @@
-# Test heat equation agrees with analytic solution to problem 55
 import ClimaCore.Geometry, LinearAlgebra, UnPack
 import ClimaCore:
     Fields,
