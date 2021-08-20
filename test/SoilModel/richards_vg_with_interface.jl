@@ -32,7 +32,9 @@ struct FreeDrainage <: bc end
 
 function compute_richards_rhs!(dY, Y, p, top::θDirichlet,bottom::FreeDrainage)
     # θ_top = something, K∇h_bottom = K_bottom (∇h = 1). If ∇h = 1, θ_b = θ_f, so K = Kbottom at the face.
-    @unpack    ϑ_l, θ_i = Y.x[1]
+    #(Y_hyd,_) = Y.x
+    #(dY_hyd,_) = dY.x
+    @unpack    ϑ_l, θ_i = Y.x[1]#_hyd
     dϑ_l = dY.x[1].ϑ_l
     dθ_i = dY.x[1].θ_i
     sp = p[2]
@@ -96,9 +98,10 @@ end
     zc = Fields.coordinate_field(cs)
     
     function init_centers(zc)
-        
-        θ_i = Fields.zeros(FT,cs)
-        θl = Fields.zeros(FT, cs) .+ θl_0
+        f = Float64
+        initial_value = f(0.1)
+        θ_i = f(0.0)
+        θl =  initial_value
         return (ϑ_l = θl, θ_i = θ_i)
     end
     hydrology_model = SoilHydrologyModel(init_centers, nothing)
