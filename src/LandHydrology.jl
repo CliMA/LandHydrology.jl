@@ -53,7 +53,7 @@ struct SoilHeatParams{FT} <: ParameterStructure{FT}
 end
 
 
-
+include(joinpath("SoilModel", "SoilInterface.jl"))
 include(joinpath("SoilModel", "SoilWaterParameterizations.jl"))
 include(joinpath("SoilModel", "SoilHeatParameterizations.jl"))
 

@@ -14,6 +14,7 @@ using Plots
 using DelimitedFiles
 using UnPack
 using LandHydrology
+using LandHydrology.SoilInterface
 using LandHydrology.SoilWaterParameterizations
 using ArtifactWrappers
 using Test
@@ -32,11 +33,11 @@ struct FreeDrainage <: bc end
 
 function compute_richards_rhs!(dY, Y, p, top::θDirichlet,bottom::FreeDrainage)
     # θ_top = something, K∇h_bottom = K_bottom (∇h = 1). If ∇h = 1, θ_b = θ_f, so K = Kbottom at the face.
-    #(Y_hyd,_) = Y.x
-    #(dY_hyd,_) = dY.x
-    @unpack    ϑ_l, θ_i = Y.x[1]#_hyd
-    dϑ_l = dY.x[1].ϑ_l
-    dθ_i = dY.x[1].θ_i
+    (Y_hyd,) = Y.x
+    (dY_hyd,) = dY.x
+    @unpack    ϑ_l, θ_i = Y_hyd
+    dϑ_l = dY_hyd.ϑ_l
+    dθ_i = dY_hyd.θ_i
     sp = p[2]
     zc = p[1]
     @unpack ν,vgn,vgα,vgm,ksat,θr = sp
@@ -98,15 +99,14 @@ end
     zc = Fields.coordinate_field(cs)
     
     function init_centers(zc)
-        f = Float64
-        initial_value = f(0.1)
-        θ_i = f(0.0)
+        initial_value = 0.1
+        θ_i = 0.0
         θl =  initial_value
-        return (ϑ_l = θl, θ_i = θ_i)
+        return (ϑ_l = θl, θ_i = θ_i,)
     end
     hydrology_model = SoilHydrologyModel(init_centers, nothing)
     energy_model = PrescribedTemperatureModel(nothing)
-    soil_model = SoilModel(energy_model, hydrology_model)
+    soil_model = SoilModel(energy_model, hydrology_model, msp, param_set)
     Y = init_prognostic_vars(soil_model, cs)
     
     p = [zc, msp,top_bc, bottom_bc]
@@ -119,7 +119,7 @@ end
     prob = ODEProblem(∑tendencies!, Y, (t0, tf),p)
     sol = solve(
         prob,
-        TsitPap8(),
+        CarpenterKennedy2N54(),
         dt = Δt,
         saveat = 60 * Δt,
         progress = true,

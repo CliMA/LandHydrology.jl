@@ -1,3 +1,8 @@
+export SoilHydrologyModel,
+    SoilModel,
+    PrescribedTemperatureModel,
+    SoilEnergyModel
+
 abstract type AbstractSoilModel end
 
 struct SoilEnergyModel <: AbstractSoilModel
@@ -14,10 +19,11 @@ struct PrescribedTemperatureModel <: AbstractSoilModel
 end
 
 
-struct SoilModel <: AbstractSoilModel
+struct SoilModel{A,B} <: AbstractSoilModel
     energy_model::AbstractSoilModel
     hydrology_model::AbstractSoilModel
-    
+    soil_params::A
+    earth_params::B
 end
 
 
