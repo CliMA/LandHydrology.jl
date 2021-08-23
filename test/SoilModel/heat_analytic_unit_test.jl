@@ -3,7 +3,7 @@
 # https://ocw.mit.edu/courses/mathematics/18-303-linear-partial-differential-equations-fall-2006/lecture-notes/heateqni.pdf.
 # This assumes zero water content in the soil/Prescribed water model
 
-import ClimaCore.Geometry, LinearAlgebra, UnPack
+import ClimaCore.Geometry
 import ClimaCore:
     Fields,
     Domains,
@@ -19,7 +19,6 @@ struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 
 using OrdinaryDiffEq: ODEProblem, solve, SSPRK33,Rosenbrock23, Tsit5,SSPRK432, Feagin14, TsitPap8,CarpenterKennedy2N54
-using Plots
 using DelimitedFiles
 using UnPack
 using LandHydrology

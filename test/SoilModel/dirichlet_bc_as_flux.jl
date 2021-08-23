@@ -1,5 +1,5 @@
 #wow what a mess
-import ClimaCore.Geometry, LinearAlgebra, UnPack
+import ClimaCore.Geometry
 import ClimaCore:
     Fields,
     Domains,
@@ -17,14 +17,13 @@ const param_set = EarthParameterSet()
 
 using RecursiveArrayTools
 using OrdinaryDiffEq: ODEProblem, solve, SSPRK33,Rosenbrock23, Tsit5,SSPRK432, Feagin14, TsitPap8,CarpenterKennedy2N54
-using Plots
 using DelimitedFiles
+using Statistics
 using UnPack
 using LandHydrology
 using LandHydrology.SoilHeatParameterizations
 using LandHydrology.SoilWaterParameterizations
 using Test
-using Statistics
 
 const FT = Float64
 
@@ -374,9 +373,9 @@ end
     dI_flux = @. gradf2c_heat(interpc2f(κ) * gradc2f_heat(T) + interpc2f(ρe_int_l*K)*gradc2f_water(h))
     dθ_flux = @. gradf2c_water(interpc2f(K) * gradc2f_heat(h))
     
-    @test sum(parent(dθ_orig) .== parent(dθ_flux)) .== n
+    @test sum(parent(dθ_orig) .== parent(dθ_flux)) == n
     
-    @test sum(parent(dI_orig) .== parent(dI_flux)) .== n
+    @test sum(parent(dI_orig) .== parent(dI_flux)) == n
 end
 
 
@@ -433,7 +432,7 @@ end
     gradf2c_new = Operators.GradientF2C(top = Operators.SetValue(flux_top), bottom = Operators.SetValue(flux_bottom))
     new = @. gradf2c_new(If_new(K)*gradc2f_new(h))
 
-    @test sum(parent(original) .== parent(new)) .== n
+    @test sum(parent(original) .== parent(new)) == n
     
 end
 
@@ -518,6 +517,6 @@ end
     gradf2c_new = Operators.GradientF2C(top = Operators.SetValue(flux_top), bottom = Operators.SetValue(flux_bottom))
     new = @. gradf2c_new(If_new(κ)*gradc2f_new(T))
 
-    @test sum(parent(original) .== parent(new)) .== n
+    @test sum(parent(original) .== parent(new)) == n
 
 end
