@@ -1,4 +1,3 @@
-import ClimaCore.Geometry, LinearAlgebra, UnPack
 import ClimaCore:
     Fields,
     Domains,
@@ -30,6 +29,7 @@ using Plots
 using DelimitedFiles
 using UnPack
 using LandHydrology
+using LandHydrology.SoilInterface
 using LandHydrology.SoilHeatParameterizations
 using LandHydrology.SoilWaterParameterizations
 using Test
@@ -53,14 +53,16 @@ function compute_integrated_rhs!(dY, Y, t, p)
     param_set = p[2]
     zc = p[3]
     @unpack top_heat_flux, btm_heat_flux, top_water_flux, btm_water_flux = p[4]
-    @unpack ν, vgn, vgα, vgm, ksat, θr, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
-    ϑ_l = Y.x[1]
-    θ_i = Y.x[2]
-    ρe_int = Y.x[3]
+    @unpack ν,vgn,vgα,vgm,ksat,θr,ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
 
-    dϑ_l = dY.x[1]
-    dθ_i = dY.x[2]
-    dρe_int = dY.x[3]
+    (Y_hydro, Y_energy) = Y.x
+    (dY_hydro, dY_energy) = dY.x
+    @unpack ϑ_l, θ_i = Y_hydro
+    @unpack ρe_int = Y_energy
+
+    dϑ_l = dY_hydro.ϑ_l
+    dθ_i = dY_hydro.θ_i
+    dρe_int = dY_energy.ρe_int
 
     # Compute center values of everything
     θ_l = ϑ_l
@@ -180,29 +182,52 @@ top_water_flux = FT(0)
 top_heat_flux = FT(0)
 bottom_water_flux = FT(0)
 bottom_heat_flux = FT(0)
-bc = FluxBC(top_heat_flux, top_water_flux, bottom_heat_flux, bottom_water_flux)
+
+flux_bc = FluxBC(top_heat_flux,
+            top_water_flux,
+            bottom_heat_flux,
+            bottom_water_flux)
 
 #Parameter structure
-p = [msp, param_set, zc, bc]
+p = [msp, param_set, zc,flux_bc]
 
 #initial conditions
-T_max = FT(289.0)
-T_min = FT(288.0)
-c = FT(20.0)
-T = @. T_min + (T_max - T_min) * exp(-(zc - zmax) / (zmin - zmax) * c)
 
-θ_i = Fields.zeros(FT, cs)
+# clean up parameters
+function init_hydrology(z)
+    θ_i = 0.0
+    c = (20.0)
+    zmax = 0.0
+    zmin = -1.0
+    theta_max = 0.1975
+    theta_min = 0.158
+    ϑ_l = theta_min + (theta_max - theta_min) * exp(-(z - zmax) / (zmin - zmax) * c)
+    return(ϑ_l = ϑ_l, θ_i =θ_i,)
+end
 
-theta_max = FT(ν * 0.5)
-theta_min = FT(ν * 0.4)
-θ_l = @. theta_min +
-   (theta_max - theta_min) * exp(-(zc - zmax) / (zmin - zmax) * c)
 
+function init_energy(z, soil_params, global_params)
+    T_max = 289.0
+    T_min = 288.0
+    c = 20.0
+    zmax = 0.0
+    zmin = -1.0
+    T= T_min + (T_max - T_min) * exp(-(z - zmax) / (zmin - zmax) * c)
+    θ_i = 0.0
+    theta_max = 0.1975
+    theta_min = 0.158
+    θ_l = theta_min + (theta_max - theta_min) * exp(-(z - zmax) / (zmin - zmax) * c)
+    
+    ρc_ds = soil_params.ρc_ds
+    ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, global_params)
+    ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, global_params)
+    return (ρe_int = ρe_int,)
+end
 
-ρc_s = volumetric_heat_capacity.(θ_l, θ_i, ρc_ds, Ref(param_set))
-ρe_int = volumetric_internal_energy.(θ_i, ρc_s, T, Ref(param_set))
-
-Y = ArrayPartition(θ_l, θ_i, ρe_int)
+hydrology_model = SoilHydrologyModel(init_hydrology, nothing)
+energy_model = SoilEnergyModel(init_energy, nothing)
+soil_model = SoilModel(energy_model, hydrology_model,msp, param_set)
+Y = init_prognostic_vars(soil_model, cs)
 
 function ∑tendencies!(dY, Y, p, t)
     #intermediate step to be added if needed
@@ -214,7 +239,7 @@ prob = ODEProblem(∑tendencies!, Y, (t0, tf), p)
 # solve simulation
 sol = solve(
     prob,
-    TsitPap8(),
+    CarpenterKennedy2N54(),
     dt = dt,
     saveat = 60 * dt,
     progress = true,
@@ -222,128 +247,33 @@ sol = solve(
 );
 
 
-
-
-#### for the sequential coupler
-#=
-integrator = init(prob, CarpenterKennedy2N54(),dt= dt)
-N = Int((tf-t0)/dt)
-for n in 1:1:N
-    step!(integrator,dt,true) # integrates to t+dt exactly
-    integrator.p[4].top_heat_flux = new_value # coupler could reset heat flux (to be a constant over soil time step, such that Fdt = accumulated atmos flux
-    
-end
-=#
-
-#alternatively, can do with callback
-#=
-function condition(u,t,integrator) # Event at every time step?
-    t = integrator.t_prev+dt ## should access dt in integrator?
-end
-function affect!(integrator)
-    integrator.p[4].top_heat_flux= new_top_heat_flux_value
-end
-cb = ContinuousCallback(condition, affect!)
-integrator = init(prob, CarpenterKennedy2N54(),dt= dt, callback= cb)
-#etc.
-
-
-=#
-
-
 #Plotting
-#=
-plot1 = plot(
-    parent(sol.u[1].x[1]),parent(zc),
-    xlim = (0, ν),
-    ylim = (-1, 0),
-    label = "IC",
-    lc = :black,
-    lw = 2,
-    legend = :outerright,
-    xlabel = "θ(z)",
-    ylabel = "z",
-)
-plot!(
-    parent(sol.u[36].x[1]),parent(zc),
-    label = "18h",
-    lc = :red,
-    lw = 2,
- 
-)
-plot!(
-    parent(sol.u[72].x[1]),parent(zc),
-    label = "36h",
-    lc = :blue,
-    lw = 2,
- 
-)
-plot!(
-    parent(sol.u[108].x[1]),parent(zc),
-    label = "54h",
-    lc = :orange,
-    lw = 2,
- 
-)
-
-plot!(
-    parent(sol.u[end].x[1]),parent(zc),
-    label = "72h",
-    lc = :green,
-    lw = 2,
- 
-)
-
-
-ρc_s = volumetric_heat_capacity.(sol.u[1].x[1], sol.u[1].x[2], ρc_ds, Ref(param_set))
-temp = temperature_from_ρe_int.(sol.u[1].x[3], sol.u[1].x[2], ρc_s, Ref(param_set))
+z = parent(zc)
+ϑ_l = [parent(sol.u[k].x[1].ϑ_l) for k in 1:length(sol.u)]
+θ_i = [parent(sol.u[k].x[1].θ_i) for k in 1:length(sol.u)]
+ρe_int = [parent(sol.u[k].x[2].ρe_int) for k in 1:length(sol.u)]
+indices = [1,36,72,108,length(sol.t)]
+labels = ["IC","18h","36h", "54h","72h"]
+plot1 = plot(xlim = (0.1, 0.25),
+             ylim = (-1, 0),
+             legend = :outerright,
+             xlabel = "θ(z)",
+             ylabel = "z",
+             )
+for i in 1:1:length(indices)
+    plot!(ϑ_l[indices[i]], z, label = labels[i], lw= 2)
+end
 plot2 = plot(
-    parent(temp),parent(zc),
-   # xlim = (0, ν),
     ylim = (-1, 0),
-    label = "IC",
-    lc = :black,
-    lw = 2,
     legend = :outerright,
     xlabel = "T(K)",
     ylabel = "z",
 )
-ρc_s = volumetric_heat_capacity.(sol.u[36].x[1], sol.u[36].x[2], ρc_ds, Ref(param_set))
-temp = temperature_from_ρe_int.(sol.u[36].x[3], sol.u[36].x[2], ρc_s, Ref(param_set))
-plot!(
-    parent(temp),parent(zc),
-    label = "18h",
-    lc = :red,
-    lw = 2,
- 
-)
-ρc_s = volumetric_heat_capacity.(sol.u[72].x[1], sol.u[72].x[2], ρc_ds, Ref(param_set))
-temp = temperature_from_ρe_int.(sol.u[72].x[3], sol.u[72].x[2], ρc_s, Ref(param_set))
-plot!(
-    parent(temp),parent(zc),
-    label = "36h",
-    lc = :blue,
-    lw = 2,
- 
-)
-ρc_s = volumetric_heat_capacity.(sol.u[108].x[1], sol.u[108].x[2], ρc_ds, Ref(param_set))
-temp = temperature_from_ρe_int.(sol.u[108].x[3], sol.u[108].x[2], ρc_s, Ref(param_set))
-plot!(
-    parent(temp),parent(zc),
-    label = "54h",
-    lc = :orange,
-    lw = 2,
- 
-)
-ρc_s = volumetric_heat_capacity.(sol.u[end].x[1], sol.u[end].x[2], ρc_ds, Ref(param_set))
-temp = temperature_from_ρe_int.(sol.u[end].x[3], sol.u[end].x[2], ρc_s, Ref(param_set))
-plot!(
-    parent(temp),parent(zc),
-    label = "72h",
-    lc = :green,
-    lw = 2,
- 
-)
+for i in 1:1:length(indices)
+    k = indices[i]
+    ρc_s = volumetric_heat_capacity.(ϑ_l[k], θ_i[k], ρc_ds, Ref(param_set))
+    temp = temperature_from_ρe_int.(ρe_int[k], θ_i[k], ρc_s, Ref(param_set))
+    plot!(temp, z, label = labels[i], lw = 2)
+end
 
 plot(plot1,plot2)
-=#

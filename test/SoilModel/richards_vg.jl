@@ -1,4 +1,3 @@
-import ClimaCore.Geometry
 import ClimaCore:
     Fields,
     Domains,
@@ -9,23 +8,18 @@ import ClimaCore:
     Geometry,
     Spaces
 #using DiffEqCallbacks
-using OrdinaryDiffEq:
-    ODEProblem,
-    solve,
-    SSPRK33,
-    Rosenbrock23,
-    Tsit5,
-    SSPRK432,
-    Feagin14,
-    TsitPap8,
-    CarpenterKennedy2N54
+using OrdinaryDiffEq: ODEProblem, solve, CarpenterKennedy2N54
 using DelimitedFiles
 using UnPack
 using LandHydrology
+using LandHydrology.SoilInterface
 using LandHydrology.SoilWaterParameterizations
 using ArtifactWrappers
 using Test
 
+using CLIMAParameters
+struct EarthParameterSet <: AbstractEarthParameterSet end
+const param_set = EarthParameterSet()
 const FT = Float64
 
 
@@ -38,18 +32,17 @@ struct FreeDrainage <: bc end
 
 
 
-function compute_richards_rhs!(
-    dθl,
-    θl,
-    p,
-    top::θDirichlet,
-    bottom::FreeDrainage,
-)
+function compute_richards_rhs!(dY, Y, p, top::θDirichlet,bottom::FreeDrainage)
     # θ_top = something, K∇h_bottom = K_bottom (∇h = 1). If ∇h = 1, θ_b = θ_f, so K = Kbottom at the face.
-
+    (Y_hyd,) = Y.x
+    (dY_hyd,) = dY.x
+    @unpack    ϑ_l, θ_i = Y_hyd
+    dϑ_l = dY_hyd.ϑ_l
+    dθ_i = dY_hyd.θ_i
     sp = p[2]
     zc = p[1]
     @unpack ν, vgn, vgα, vgm, ksat, θr = sp
+    θl = ϑ_l
     S = effective_saturation.(θl; ν = ν, θr = θr)
     K = hydraulic_conductivity.(S; vgm = vgm, ksat = ksat)
     ψ = matric_potential.(S; vgn = vgn, vgα = vgα, vgm = vgm)
@@ -68,10 +61,11 @@ function compute_richards_rhs!(
 
     bc_b = Operators.SetValue(FT(1) * parent(K)[1])
     gradf2c = Operators.GradientF2C(bottom = bc_b) # set value on K∇h at bottom
-
-
-
-    return @. dθl = gradf2c(If(K) * gradc2f(h))
+    @. dϑ_l = gradf2c( If(K) * gradc2f(h))
+    cs = axes(θ_i)
+    dθ_i = Fields.zeros(eltype(θ_i),cs)
+    return dY
+    
 end
 
 @testset "Richards sand 1" begin
@@ -99,26 +93,29 @@ end
     cs = Spaces.CenterFiniteDifferenceSpace(mesh)
     fs = Spaces.FaceFiniteDifferenceSpace(cs)
     zc = Fields.coordinate_field(cs)
-
-
-    θl = Fields.zeros(FT, cs) .+ θl_0
-
-    # Solve Richard's Equation: ∂_t θl = ∂_z [K(θl)(∂_z ψ(θl) +1)]
-
-    p = [zc, msp, top_bc, bottom_bc]
-    function ∑tendencies!(dθl, θl, p, t)
+    
+    function init_centers(zc)
+        initial_value = 0.1
+        θ_i = 0.0
+        θl =  initial_value
+        return (ϑ_l = θl, θ_i = θ_i,)
+    end
+    hydrology_model = SoilHydrologyModel(init_centers, nothing)
+    energy_model = PrescribedTemperatureModel(nothing)
+    soil_model = SoilModel(energy_model, hydrology_model, msp, param_set)
+    Y = init_prognostic_vars(soil_model, cs)
+    
+    p = [zc, msp,top_bc, bottom_bc]
+    function ∑tendencies!(dY, Y, p, t)
         top = p[3]
         bot = p[4]
-        compute_richards_rhs!(dθl, θl, p, top, bot)
+        compute_richards_rhs!(dY, Y,p , top,bot)
     end
-    #@show ∑tendencies!(similar(θl), θl, nothing, 0.0);
-
-    # Solve the ODE operator
-
-    prob = ODEProblem(∑tendencies!, θl, (t0, tf), p)
+    
+    prob = ODEProblem(∑tendencies!, Y, (t0, tf),p)
     sol = solve(
         prob,
-        TsitPap8(),
+        CarpenterKennedy2N54(),
         dt = Δt,
         saveat = 60 * Δt,
         progress = true,
@@ -139,23 +136,6 @@ end
     ds_bonan = readdlm(data, ',')
     bonan_moisture = reverse(ds_bonan[:, 1])
     bonan_z = reverse(ds_bonan[:, 2]) ./ 100.0
+    @test sqrt.(sum((bonan_moisture .- parent(sol.u[end].x[1].ϑ_l)).^2.0)) < FT(0.1)
 
-    #    dirname = "richards"
-    #    path = joinpath(@__DIR__, "test", "SoilModel", dirname)
-    #    mkpath(path)
-    #    plot(bonan_moisture, bonan_z, label = "Bonan solution", lw = 2, lc = :green)    
-    #    plot!(
-    #        parent(sol.u[end]),parent(zc),
-    #        xlim = (0, 0.287),
-    #        ylim = (-1.5, 0),
-    #        label = "Clima solution",
-    #        lc = :black,
-    #        lw = 2,
-    #        ls = :dash,
-    #        legend = :outerright,
-    #        xlabel = "θ(z)",
-    #        ylabel = "z",
-    #    )
-    #    savefig(joinpath(path, "richards_sand.png"))
-    @test sqrt.(sum((bonan_moisture .- parent(sol.u[end])) .^ 2.0)) < FT(0.1)
 end
