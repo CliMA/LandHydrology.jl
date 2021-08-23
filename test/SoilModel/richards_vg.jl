@@ -1,4 +1,4 @@
-import ClimaCore.Geometry, LinearAlgebra, UnPack
+import ClimaCore.Geometry
 import ClimaCore:
     Fields,
     Domains,
@@ -10,7 +10,6 @@ import ClimaCore:
     Spaces
 #using DiffEqCallbacks
 using OrdinaryDiffEq: ODEProblem, solve, SSPRK33,Rosenbrock23, Tsit5,SSPRK432, Feagin14, TsitPap8,CarpenterKennedy2N54
-using Plots
 using DelimitedFiles
 using UnPack
 using LandHydrology
@@ -127,22 +126,22 @@ end
     bonan_moisture = reverse(ds_bonan[:, 1])
     bonan_z = reverse(ds_bonan[:, 2]) ./ 100.0
     
-    dirname = "richards"
-    path = joinpath(@__DIR__, "test", "SoilModel", dirname)
-    mkpath(path)
-    plot(bonan_moisture, bonan_z, label = "Bonan solution", lw = 2, lc = :green)    
-    plot!(
-        parent(sol.u[end]),parent(zc),
-        xlim = (0, 0.287),
-        ylim = (-1.5, 0),
-        label = "Clima solution",
-        lc = :black,
-        lw = 2,
-        ls = :dash,
-        legend = :outerright,
-        xlabel = "θ(z)",
-        ylabel = "z",
-    )
-    savefig(joinpath(path, "richards_sand.png"))
+#    dirname = "richards"
+#    path = joinpath(@__DIR__, "test", "SoilModel", dirname)
+#    mkpath(path)
+#    plot(bonan_moisture, bonan_z, label = "Bonan solution", lw = 2, lc = :green)    
+#    plot!(
+#        parent(sol.u[end]),parent(zc),
+#        xlim = (0, 0.287),
+#        ylim = (-1.5, 0),
+#        label = "Clima solution",
+#        lc = :black,
+#        lw = 2,
+#        ls = :dash,
+#        legend = :outerright,
+#        xlabel = "θ(z)",
+#        ylabel = "z",
+#    )
+#    savefig(joinpath(path, "richards_sand.png"))
     @test sqrt.(sum((bonan_moisture .- parent(sol.u[end])).^2.0)) < FT(0.1)
 end
