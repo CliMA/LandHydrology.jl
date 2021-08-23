@@ -1,7 +1,5 @@
 module LandHydrology
-export SoilParams,
-    SoilWaterParams,
-    SoilHeatParams
+export SoilParams, SoilWaterParams, SoilHeatParams
 
 abstract type ParameterStructure{FT <: AbstractFloat} end
 

@@ -18,7 +18,16 @@ using CLIMAParameters
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 
-using OrdinaryDiffEq: ODEProblem, solve, SSPRK33,Rosenbrock23, Tsit5,SSPRK432, Feagin14, TsitPap8,CarpenterKennedy2N54
+using OrdinaryDiffEq:
+    ODEProblem,
+    solve,
+    SSPRK33,
+    Rosenbrock23,
+    Tsit5,
+    SSPRK432,
+    Feagin14,
+    TsitPap8,
+    CarpenterKennedy2N54
 using DelimitedFiles
 using UnPack
 using LandHydrology
@@ -34,37 +43,43 @@ struct TDirichlet{FiT} <: bc
     T::FiT
 end
 function get_water_content(I)
-    FT =eltype(I)
+    FT = eltype(I)
     return FT(0.0), FT(0.0)
 end
 
-function compute_soil_heat_rhs!(dI, I, t, p, top::TDirichlet, bottom::TDirichlet)
+function compute_soil_heat_rhs!(
+    dI,
+    I,
+    t,
+    p,
+    top::TDirichlet,
+    bottom::TDirichlet,
+)
     sp = p[1]
     param_set = p[2]
     @unpack ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
-    
+
     θ_l, θ_i = get_water_content(I)# this is a stand in - need to get this from the soil state vector when we have water included. dispatch on soil water type - prescribed or dynamic
     ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, param_set) # eventualyl will be different at top and bottom...
     Ttop = top.T(t)
     Tbot = bottom.T(t)
     T = temperature_from_ρe_int.(I, θ_i, ρc_s, Ref(param_set))
-    
+
     κ_dry = k_dry(param_set, sp)
     S_r = relative_saturation(θ_l, θ_i, ν)
     kersten = kersten_number(θ_i, S_r, sp)
-    κ_sat = saturated_thermal_conductivity(
-        θ_l,
-        θ_i,
-        κ_sat_unfrozen,
-        κ_sat_frozen,
-    )
+    κ_sat =
+        saturated_thermal_conductivity(θ_l, θ_i, κ_sat_unfrozen, κ_sat_frozen)
     κ = thermal_conductivity(κ_dry, kersten, κ_sat)
 
-    gradc2f = Operators.GradientC2F(top = Operators.SetValue(Ttop), bottom = Operators.SetValue(Tbot))
+    gradc2f = Operators.GradientC2F(
+        top = Operators.SetValue(Ttop),
+        bottom = Operators.SetValue(Tbot),
+    )
     gradf2c = Operators.GradientF2C()
-    
+
     return @. dI = gradf2c(κ * gradc2f(T)) # κ is just a constant here - will be center Field eventually
-    
+
 end
 ν = 0.495
 ν_ss_gravel = 0.1
@@ -90,7 +105,7 @@ msp = SoilHeatParams(
     κ_sat_frozen,
     a,
     b,
-    κ_dry_parameter
+    κ_dry_parameter,
 )
 
 
@@ -109,7 +124,7 @@ cs = Spaces.CenterFiniteDifferenceSpace(mesh)
 fs = Spaces.FaceFiniteDifferenceSpace(cs)
 zc = Fields.coordinate_field(cs)
 
-T0 = Fields.zeros(FT,cs)
+T0 = Fields.zeros(FT, cs)
 θ_l, θ_i = get_water_content(T0)# this is a stand in - need to get this from the soil state vector when we have water included. dispatch on soil water type - prescribed or dynamic
 ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, param_set) # eventualyl will be different at top and bottom...
 I = volumetric_internal_energy.(θ_i, ρc_s, T0, Ref(param_set))
@@ -120,14 +135,14 @@ A = FT(5) # amplitude (K)
 topbc = TDirichlet(t -> eltype(t)(0.0))
 bottombc = TDirichlet(t -> A * cos(ω * t))
 
-p = [msp,param_set,topbc,bottombc]
+p = [msp, param_set, topbc, bottombc]
 function ∑tendencies!(dI, I, p, t)
     top = p[3]
     bot = p[4]
-    compute_soil_heat_rhs!(dI, I,t, p , top,bot)
+    compute_soil_heat_rhs!(dI, I, t, p, top, bot)
 end
-    
-prob = ODEProblem(∑tendencies!, I, (t0, tf),p)
+
+prob = ODEProblem(∑tendencies!, I, (t0, tf), p)
 sol = solve(
     prob,
     TsitPap8(),
@@ -151,5 +166,3 @@ Ifinal = parent(sol.u[end])[:]
 Tfinal = temperature_from_ρe_int.(Ifinal, θ_i, ρc_s, Ref(param_set))
 MSE = mean((analytic_soln .- Tfinal) .^ 2.0)
 @test MSE < 1e-2
-
-
