@@ -15,7 +15,16 @@ struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 
 using RecursiveArrayTools
-using OrdinaryDiffEq: ODEProblem, solve, SSPRK33,Rosenbrock23, Tsit5,SSPRK432, Feagin14, TsitPap8,CarpenterKennedy2N54
+using OrdinaryDiffEq:
+    ODEProblem,
+    solve,
+    SSPRK33,
+    Rosenbrock23,
+    Tsit5,
+    SSPRK432,
+    Feagin14,
+    TsitPap8,
+    CarpenterKennedy2N54
 using DifferentialEquations
 using Plots
 using DelimitedFiles
@@ -44,7 +53,7 @@ function compute_integrated_rhs!(dY, Y, t, p)
     param_set = p[2]
     zc = p[3]
     @unpack top_heat_flux, btm_heat_flux, top_water_flux, btm_water_flux = p[4]
-    @unpack ν,vgn,vgα,vgm,ksat,θr,ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
+    @unpack ν, vgn, vgα, vgm, ksat, θr, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
     ϑ_l = Y.x[1]
     θ_i = Y.x[2]
     ρe_int = Y.x[3]
@@ -60,18 +69,14 @@ function compute_integrated_rhs!(dY, Y, t, p)
     κ_dry = k_dry(param_set, sp)
     S_r = relative_saturation.(θ_l, θ_i, ν)
     kersten = kersten_number.(θ_i, S_r, Ref(sp))
-    κ_sat = saturated_thermal_conductivity.(
-        θ_l,
-        θ_i,
-        κ_sat_unfrozen,
-        κ_sat_frozen,
-    )
+    κ_sat =
+        saturated_thermal_conductivity.(θ_l, θ_i, κ_sat_unfrozen, κ_sat_frozen)
     κ = thermal_conductivity.(κ_dry, kersten, κ_sat)
     ρe_int_l = volumetric_internal_energy_liq.(T, Ref(param_set))
 
     cs = axes(θ_i)
 
-    
+
     S = effective_saturation.(θ_l; ν = ν, θr = θr)
     K = hydraulic_conductivity.(S; vgm = vgm, ksat = ksat)
     ψ = matric_potential.(S; vgn = vgn, vgα = vgα, vgm = vgm)
@@ -79,17 +84,27 @@ function compute_integrated_rhs!(dY, Y, t, p)
 
     interpc2f = Operators.InterpolateC2F()
     gradc2f_heat = Operators.GradientC2F()
-    gradf2c_heat = Operators.GradientF2C(top = Operators.SetValue(top_heat_flux), bottom = Operators.SetValue(btm_heat_flux))
+    gradf2c_heat = Operators.GradientF2C(
+        top = Operators.SetValue(top_heat_flux),
+        bottom = Operators.SetValue(btm_heat_flux),
+    )
 
     gradc2f_water = Operators.GradientC2F()
-    gradf2c_water= Operators.GradientF2C(top = Operators.SetValue(top_water_flux), bottom = Operators.SetValue(btm_water_flux))
+    gradf2c_water = Operators.GradientF2C(
+        top = Operators.SetValue(top_water_flux),
+        bottom = Operators.SetValue(btm_water_flux),
+    )
 
-    @. dϑ_l = -gradf2c_water( -interpc2f(K) * gradc2f_water(h)) #Richards equation
-    @. dρe_int = -gradf2c_heat(-interpc2f(κ) * gradc2f_heat(T) - interpc2f(ρe_int_l*K)*gradc2f_water(h))
-    dθ_i = Fields.zeros(eltype(θ_i),cs)
+    @. dϑ_l = -gradf2c_water(-interpc2f(K) * gradc2f_water(h)) #Richards equation
+    @. dρe_int =
+        -gradf2c_heat(
+            -interpc2f(κ) * gradc2f_heat(T) -
+            interpc2f(ρe_int_l * K) * gradc2f_water(h),
+        )
+    dθ_i = Fields.zeros(eltype(θ_i), cs)
 
     return dY
-  
+
 end
 
 # General composition
@@ -104,7 +119,7 @@ Ksat = FT(4.42 / 3600 / 100) # m/s
 S_s = FT(1e-3) #inverse meters
 vg_n = FT(1.89)
 vg_α = FT(7.5); # inverse meters
-vg_m = FT(1) -FT(1)/vg_n
+vg_m = FT(1) - FT(1) / vg_n
 θ_r = FT(0)
 
 #Heat specific
@@ -123,18 +138,26 @@ b = FT(18.1)
 κ_dry_parameter = FT(0.053)
 
 #collect all params
-msp = SoilParams{FT}(ν,vg_n,vg_α,vg_m, Ksat, θ_r, S_s,
-                     ν_ss_gravel,
-                     ν_ss_om,
-                     ν_ss_quartz,
-                     ρc_ds,
-                     κ_solid,
-                     ρp,
-                     κ_sat_unfrozen,
-                     κ_sat_frozen,
-                     a,
-                     b,
-                     κ_dry_parameter)
+msp = SoilParams{FT}(
+    ν,
+    vg_n,
+    vg_α,
+    vg_m,
+    Ksat,
+    θ_r,
+    S_s,
+    ν_ss_gravel,
+    ν_ss_om,
+    ν_ss_quartz,
+    ρc_ds,
+    κ_solid,
+    ρp,
+    κ_sat_unfrozen,
+    κ_sat_frozen,
+    a,
+    b,
+    κ_dry_parameter,
+)
 
 
 #Simulation and domain info
@@ -157,25 +180,23 @@ top_water_flux = FT(0)
 top_heat_flux = FT(0)
 bottom_water_flux = FT(0)
 bottom_heat_flux = FT(0)
-bc = FluxBC(top_heat_flux,
-            top_water_flux,
-            bottom_heat_flux,
-            bottom_water_flux)
+bc = FluxBC(top_heat_flux, top_water_flux, bottom_heat_flux, bottom_water_flux)
 
 #Parameter structure
-p = [msp, param_set, zc,bc]
+p = [msp, param_set, zc, bc]
 
 #initial conditions
 T_max = FT(289.0)
 T_min = FT(288.0)
 c = FT(20.0)
-T= @.  T_min + (T_max - T_min) * exp(-(zc - zmax) / (zmin - zmax) * c)
+T = @. T_min + (T_max - T_min) * exp(-(zc - zmax) / (zmin - zmax) * c)
 
-θ_i = Fields.zeros(FT,cs)
+θ_i = Fields.zeros(FT, cs)
 
 theta_max = FT(ν * 0.5)
 theta_min = FT(ν * 0.4)
-θ_l = @. theta_min + (theta_max - theta_min) * exp(-(zc - zmax) / (zmin - zmax) * c)
+θ_l = @. theta_min +
+   (theta_max - theta_min) * exp(-(zc - zmax) / (zmin - zmax) * c)
 
 
 ρc_s = volumetric_heat_capacity.(θ_l, θ_i, ρc_ds, Ref(param_set))
@@ -185,10 +206,10 @@ Y = ArrayPartition(θ_l, θ_i, ρe_int)
 
 function ∑tendencies!(dY, Y, p, t)
     #intermediate step to be added if needed
-    compute_integrated_rhs!(dY, Y,t, p)
+    compute_integrated_rhs!(dY, Y, t, p)
 end
 
-prob = ODEProblem(∑tendencies!, Y, (t0, tf),p)
+prob = ODEProblem(∑tendencies!, Y, (t0, tf), p)
 
 # solve simulation
 sol = solve(
