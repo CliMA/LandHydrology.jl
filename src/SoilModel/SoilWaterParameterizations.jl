@@ -1,7 +1,8 @@
 module SoilWaterParameterizations
 using Printf
 
-export effective_saturation, pressure_head, hydraulic_conductivity, hydrostatic_profile, matric_potential
+export effective_saturation,
+    pressure_head, hydraulic_conductivity, hydrostatic_profile, matric_potential
 
 
 function matric_potential(S; vgn = vgn, vgα = vgα, vgm = vgm)
@@ -12,27 +13,35 @@ end
 
 
 function effective_saturation(θ; ν = ν, θr = θr)
-    
+
     if θ < θr
         println("Effective saturation is negative")
         println(θ)
     end
-    return (θ-θr)/(ν-θr)
+    return (θ - θr) / (ν - θr)
 end
 
-function pressure_head(S; vgn = vgn, vgα = vgα, vgm = vgm, ν = ν, θr = θr, S_s = S_s)
+function pressure_head(
+    S;
+    vgn = vgn,
+    vgα = vgα,
+    vgm = vgm,
+    ν = ν,
+    θr = θr,
+    S_s = S_s,
+)
     FT = eltype(S)
     if S < FT(0)
         println("Effective saturation is negative")
         println(S)
     end
     if S < FT(1)
-            ψ = matric_potential(S;vgn = vgn, vgα = vgα, vgm = vgm)
+        ψ = matric_potential(S; vgn = vgn, vgα = vgα, vgm = vgm)
     else
-        θ = S* (ν-θr) + θr 
-        ψ = (θ-ν)/S_s
+        θ = S * (ν - θr) + θr
+        ψ = (θ - ν) / S_s
     end
-    
+
     return ψ
 end
 
@@ -44,13 +53,13 @@ function hydraulic_conductivity(S; vgm = vgm, ksat = ksat)
     else
         K = FT(1)
     end
-        return K*ksat
+    return K * ksat
 end
 function hydrostatic_profile(z, zmin, porosity, n, α, θr)
     FT = eltype(z)
     m = FT(1 - 1 / n)
     S = FT((FT(1) + (α * (z - zmin))^n)^(-m))
-    return FT(S * (porosity-θr)+θr)
+    return FT(S * (porosity - θr) + θr)
 end
 
 
