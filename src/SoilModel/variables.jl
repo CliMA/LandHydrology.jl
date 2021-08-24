@@ -1,6 +1,9 @@
 using RecursiveArrayTools
 export init_prognostic_vars
-function init_prognostic_vars(soil::SoilModel, cell_center_space::Spaces.CenterFiniteDifferenceSpace)
+function init_prognostic_vars(
+    soil::SoilModel,
+    cell_center_space::Spaces.CenterFiniteDifferenceSpace,
+)
     zc = Fields.coordinate_field(cell_center_space)
     hydrology = soil.hydrology_model
     energy = soil.energy_model
@@ -13,19 +16,37 @@ function init_prognostic_vars(soil::SoilModel, cell_center_space::Spaces.CenterF
     return ArrayPartition(prognostic_vars)
 end
 
-function init_prognostic_vars(hydrology::SoilHydrologyModel, soil_params, param_set, zc)
+function init_prognostic_vars(
+    hydrology::SoilHydrologyModel,
+    soil_params,
+    param_set,
+    zc,
+)
     return hydrology.initial_conditions.(zc)
 end
 
-function init_prognostic_vars(energy::PrescribedTemperatureModel, soil_params, param_set, zc)
+function init_prognostic_vars(
+    energy::PrescribedTemperatureModel,
+    soil_params,
+    param_set,
+    zc,
+)
     return ()
 end
-function init_prognostic_vars(energy::PrescribedHydrologyModel, soil_params, param_set, zc)
+function init_prognostic_vars(
+    energy::PrescribedHydrologyModel,
+    soil_params,
+    param_set,
+    zc,
+)
     return ()
 end
 
-function init_prognostic_vars(energy::SoilEnergyModel, soil_params, param_set, zc)
+function init_prognostic_vars(
+    energy::SoilEnergyModel,
+    soil_params,
+    param_set,
+    zc,
+)
     return energy.initial_conditions.(zc, Ref(soil_params), Ref(param_set))
 end
-
-    

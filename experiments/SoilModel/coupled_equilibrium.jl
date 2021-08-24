@@ -53,7 +53,7 @@ function compute_integrated_rhs!(dY, Y, t, p)
     param_set = p[2]
     zc = p[3]
     @unpack top_heat_flux, btm_heat_flux, top_water_flux, btm_water_flux = p[4]
-    @unpack ν,vgn,vgα,vgm,ksat,θr,ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
+    @unpack ν, vgn, vgα, vgm, ksat, θr, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
 
     (Y_hydro, Y_energy) = Y.x
     (dY_hydro, dY_energy) = dY.x
@@ -183,13 +183,11 @@ top_heat_flux = FT(0)
 bottom_water_flux = FT(0)
 bottom_heat_flux = FT(0)
 
-flux_bc = FluxBC(top_heat_flux,
-            top_water_flux,
-            bottom_heat_flux,
-            bottom_water_flux)
+flux_bc =
+    FluxBC(top_heat_flux, top_water_flux, bottom_heat_flux, bottom_water_flux)
 
 #Parameter structure
-p = [msp, param_set, zc,flux_bc]
+p = [msp, param_set, zc, flux_bc]
 
 #initial conditions
 
@@ -201,8 +199,10 @@ function init_hydrology(z)
     zmin = -1.0
     theta_max = 0.1975
     theta_min = 0.158
-    ϑ_l = theta_min + (theta_max - theta_min) * exp(-(z - zmax) / (zmin - zmax) * c)
-    return(ϑ_l = ϑ_l, θ_i =θ_i,)
+    ϑ_l =
+        theta_min +
+        (theta_max - theta_min) * exp(-(z - zmax) / (zmin - zmax) * c)
+    return (ϑ_l = ϑ_l, θ_i = θ_i)
 end
 
 
@@ -212,12 +212,14 @@ function init_energy(z, soil_params, global_params)
     c = 20.0
     zmax = 0.0
     zmin = -1.0
-    T= T_min + (T_max - T_min) * exp(-(z - zmax) / (zmin - zmax) * c)
+    T = T_min + (T_max - T_min) * exp(-(z - zmax) / (zmin - zmax) * c)
     θ_i = 0.0
     theta_max = 0.1975
     theta_min = 0.158
-    θ_l = theta_min + (theta_max - theta_min) * exp(-(z - zmax) / (zmin - zmax) * c)
-    
+    θ_l =
+        theta_min +
+        (theta_max - theta_min) * exp(-(z - zmax) / (zmin - zmax) * c)
+
     ρc_ds = soil_params.ρc_ds
     ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, global_params)
     ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, global_params)
@@ -226,7 +228,7 @@ end
 
 hydrology_model = SoilHydrologyModel(init_hydrology, nothing)
 energy_model = SoilEnergyModel(init_energy, nothing)
-soil_model = SoilModel(energy_model, hydrology_model,msp, param_set)
+soil_model = SoilModel(energy_model, hydrology_model, msp, param_set)
 Y = init_prognostic_vars(soil_model, cs)
 
 function ∑tendencies!(dY, Y, p, t)
@@ -252,23 +254,20 @@ z = parent(zc)
 ϑ_l = [parent(sol.u[k].x[1].ϑ_l) for k in 1:length(sol.u)]
 θ_i = [parent(sol.u[k].x[1].θ_i) for k in 1:length(sol.u)]
 ρe_int = [parent(sol.u[k].x[2].ρe_int) for k in 1:length(sol.u)]
-indices = [1,36,72,108,length(sol.t)]
-labels = ["IC","18h","36h", "54h","72h"]
-plot1 = plot(xlim = (0.1, 0.25),
-             ylim = (-1, 0),
-             legend = :outerright,
-             xlabel = "θ(z)",
-             ylabel = "z",
-             )
-for i in 1:1:length(indices)
-    plot!(ϑ_l[indices[i]], z, label = labels[i], lw= 2)
-end
-plot2 = plot(
+indices = [1, 36, 72, 108, length(sol.t)]
+labels = ["IC", "18h", "36h", "54h", "72h"]
+plot1 = plot(
+    xlim = (0.1, 0.25),
     ylim = (-1, 0),
     legend = :outerright,
-    xlabel = "T(K)",
+    xlabel = "θ(z)",
     ylabel = "z",
 )
+for i in 1:1:length(indices)
+    plot!(ϑ_l[indices[i]], z, label = labels[i], lw = 2)
+end
+plot2 =
+    plot(ylim = (-1, 0), legend = :outerright, xlabel = "T(K)", ylabel = "z")
 for i in 1:1:length(indices)
     k = indices[i]
     ρc_s = volumetric_heat_capacity.(ϑ_l[k], θ_i[k], ρc_ds, Ref(param_set))
@@ -276,4 +275,4 @@ for i in 1:1:length(indices)
     plot!(temp, z, label = labels[i], lw = 2)
 end
 
-plot(plot1,plot2)
+plot(plot1, plot2)

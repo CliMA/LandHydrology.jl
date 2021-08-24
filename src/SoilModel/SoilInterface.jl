@@ -1,6 +1,5 @@
 module SoilInterface
-using ClimaCore:Spaces,
-    Fields
+using ClimaCore: Spaces, Fields
 
 using DocStringExtensions
 

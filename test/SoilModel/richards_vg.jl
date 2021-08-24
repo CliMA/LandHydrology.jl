@@ -32,11 +32,11 @@ struct FreeDrainage <: bc end
 
 
 
-function compute_richards_rhs!(dY, Y, p, top::θDirichlet,bottom::FreeDrainage)
+function compute_richards_rhs!(dY, Y, p, top::θDirichlet, bottom::FreeDrainage)
     # θ_top = something, K∇h_bottom = K_bottom (∇h = 1). If ∇h = 1, θ_b = θ_f, so K = Kbottom at the face.
     (Y_hyd,) = Y.x
     (dY_hyd,) = dY.x
-    @unpack    ϑ_l, θ_i = Y_hyd
+    @unpack ϑ_l, θ_i = Y_hyd
     dϑ_l = dY_hyd.ϑ_l
     dθ_i = dY_hyd.θ_i
     sp = p[2]
@@ -61,11 +61,11 @@ function compute_richards_rhs!(dY, Y, p, top::θDirichlet,bottom::FreeDrainage)
 
     bc_b = Operators.SetValue(FT(1) * parent(K)[1])
     gradf2c = Operators.GradientF2C(bottom = bc_b) # set value on K∇h at bottom
-    @. dϑ_l = gradf2c( If(K) * gradc2f(h))
+    @. dϑ_l = gradf2c(If(K) * gradc2f(h))
     cs = axes(θ_i)
-    dθ_i = Fields.zeros(eltype(θ_i),cs)
+    dθ_i = Fields.zeros(eltype(θ_i), cs)
     return dY
-    
+
 end
 
 @testset "Richards sand 1" begin
@@ -93,26 +93,26 @@ end
     cs = Spaces.CenterFiniteDifferenceSpace(mesh)
     fs = Spaces.FaceFiniteDifferenceSpace(cs)
     zc = Fields.coordinate_field(cs)
-    
+
     function init_centers(zc)
         initial_value = 0.1
         θ_i = 0.0
-        θl =  initial_value
-        return (ϑ_l = θl, θ_i = θ_i,)
+        θl = initial_value
+        return (ϑ_l = θl, θ_i = θ_i)
     end
     hydrology_model = SoilHydrologyModel(init_centers, nothing)
     energy_model = PrescribedTemperatureModel(nothing)
     soil_model = SoilModel(energy_model, hydrology_model, msp, param_set)
     Y = init_prognostic_vars(soil_model, cs)
-    
-    p = [zc, msp,top_bc, bottom_bc]
+
+    p = [zc, msp, top_bc, bottom_bc]
     function ∑tendencies!(dY, Y, p, t)
         top = p[3]
         bot = p[4]
-        compute_richards_rhs!(dY, Y,p , top,bot)
+        compute_richards_rhs!(dY, Y, p, top, bot)
     end
-    
-    prob = ODEProblem(∑tendencies!, Y, (t0, tf),p)
+
+    prob = ODEProblem(∑tendencies!, Y, (t0, tf), p)
     sol = solve(
         prob,
         CarpenterKennedy2N54(),
@@ -136,6 +136,7 @@ end
     ds_bonan = readdlm(data, ',')
     bonan_moisture = reverse(ds_bonan[:, 1])
     bonan_z = reverse(ds_bonan[:, 2]) ./ 100.0
-    @test sqrt.(sum((bonan_moisture .- parent(sol.u[end].x[1].ϑ_l)).^2.0)) < FT(0.1)
+    @test sqrt.(sum((bonan_moisture .- parent(sol.u[end].x[1].ϑ_l)) .^ 2.0)) <
+          FT(0.1)
 
 end

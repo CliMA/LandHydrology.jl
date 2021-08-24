@@ -14,7 +14,7 @@ heat transfer in soil by solving the heat partial differential equation.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilEnergyModel{ic,bc} <: AbstractSoilModel
+struct SoilEnergyModel{ic, bc} <: AbstractSoilModel
     "function returning initial conditions for `ρe_int`"
     initial_conditions::ic
     "Boundary conditions for `ρe_int`"
@@ -30,7 +30,7 @@ the flow of water in soil by solving Richards equation.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilHydrologyModel{ic,bc} <: AbstractSoilModel
+struct SoilHydrologyModel{ic, bc} <: AbstractSoilModel
     "function returning initial conditions for `ϑ_l` and `θ_i`"
     initial_conditions::ic
     "Boundary conditions for `ϑ_l`"
@@ -64,7 +64,9 @@ end
 Outer constructor for the PrescribedTemperatureModel defining default values.
 The functions supplied by the user are point-wise evaluated.
 """
-function PrescribedTemperatureModel(T::Function = (x,y,z, t) -> eltype(x)(288))
+function PrescribedTemperatureModel(
+    T::Function = (x, y, z, t) -> eltype(x)(288),
+)
     return PrescribedTemperatureModel{typeof(T)}(T)
 end
 
@@ -85,7 +87,7 @@ a water profile must be defined to solve the heat equation.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct PrescribedHydrologyModel{p1,p2} <: AbstractSoilModel
+struct PrescribedHydrologyModel{p1, p2} <: AbstractSoilModel
     "Profile of (x,y,z,t) for ϑ_l"
     ϑ_l_profile::p1
     "Profile of (x,y,z,t) for θ_i"
@@ -101,8 +103,11 @@ end
 Outer constructor for the PrescribedHydrologyModel. The default for both ice
 and liquid water content is zero, which applies for totally dry soil. 
 """
-function PrescribedHydrologyModel(ϑ_l::Function = (x,y,z, t) -> eltype(x)(0.0), θ_i::Function = (x,y,z, t) -> eltype(x)(0.0))
-    return PrescribedHydrologyModel{typeof(ϑ_l,θ_i)}(ϑ_l, θ_i)
+function PrescribedHydrologyModel(
+    ϑ_l::Function = (x, y, z, t) -> eltype(x)(0.0),
+    θ_i::Function = (x, y, z, t) -> eltype(x)(0.0),
+)
+    return PrescribedHydrologyModel{typeof(ϑ_l, θ_i)}(ϑ_l, θ_i)
 end
 
 """
@@ -115,7 +120,8 @@ parameters needed by the soil model.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilModel{em <: AbstractSoilModel, hm <: AbstractSoilModel, A,B} <: AbstractSoilModel
+struct SoilModel{em <: AbstractSoilModel, hm <: AbstractSoilModel, A, B} <:
+       AbstractSoilModel
     "Soil energy model - prescribed or dynamics"
     energy_model::em
     "Soil hydrology model - prescribed or dynamic"
@@ -125,8 +131,3 @@ struct SoilModel{em <: AbstractSoilModel, hm <: AbstractSoilModel, A,B} <: Abstr
     "Earth parameter set"
     earth_params::B
 end
-
-
-
-
-
