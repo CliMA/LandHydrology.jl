@@ -16,6 +16,9 @@ function init_prognostic_vars(
     return ArrayPartition(prognostic_vars)
 end
 
+#Alternatively, we might have initial_conditions = (soil_heat = init_energy, soil_water = init_hydrology...) and store in SoilModel instead? Then in the above function we'd still call init_prognostic_variables one by one.
+
+#Another question - would it make more sense to make a single initialize function for all variables? the soil energy/hydrology divide is a little artificial, so it might make sense for that, but less so to have a single function for all land components. 
 function init_prognostic_vars(
     hydrology::SoilHydrologyModel,
     soil_params,

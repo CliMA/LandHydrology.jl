@@ -38,7 +38,10 @@ struct SoilHydrologyModel{ic, bc} <: AbstractSoilModel
 end
 
 """
-    PrescribedTemperatureModel{p}
+    Base.@kwdef struct PrescribedTemperatureModel <: AbstractSoilModel
+        "Profile of (z,t) for temperature"
+        T_profile::Function = (z,t) -> eltype(z)(288)
+    end
 
 The model type to be used when the user does not wish to solve
 the heat partial differential equation, but instead wishes to prescibe
@@ -48,33 +51,25 @@ This is useful for situations where Richards Equation alone is sufficient.
 Because the hydraulic conductivity can be a function of temperature, a
 temperature profile can be supplied in order to simulate that.
 
+The default is 288K across the domain, the reference temperature for the viscosity effect.
+
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct PrescribedTemperatureModel{p} <: AbstractSoilModel
-    "Profile of (x,y,z,t) for temperature"
-    T_profile::p
-end
-
-
-"""
-    PrescribedTemperatureModel(
-        T::Function = (x,y,z,t) -> eltype(x)(288.0)
-    )
-Outer constructor for the PrescribedTemperatureModel defining default values.
-The functions supplied by the user are point-wise evaluated.
-"""
-function PrescribedTemperatureModel(
-    T::Function = (x, y, z, t) -> eltype(x)(288),
-)
-    return PrescribedTemperatureModel{typeof(T)}(T)
+Base.@kwdef struct PrescribedTemperatureModel <: AbstractSoilModel
+    "Profile of (z,t) for temperature"
+    T_profile::Function = (z,t) -> eltype(z)(288)
 end
 
 
 
-
 """
-    PrescribedHydrologyModel{p1,p2}
+    Base.@kwdef struct PrescribedHydrologyModel <: AbstractSoilModel
+        "Profile of (z,t) for ϑ_l"
+        ϑ_l_profile::Function = (z,t) -> eltype(z)(0.0)
+        "Profile of (z,t) for θ_i"
+        θ_i_profile::::Function = (z,t) -> eltype(z)(0.0)
+    end
 
 The model type to be used when the user does not wish to solve
 the Richards equation, but instead wishes to prescibe
@@ -84,31 +79,20 @@ This is useful for situations where only the heat equation is to be solved.
 Because the thermal conductivity and heat capacities depend on water content,
 a water profile must be defined to solve the heat equation.
 
+The default for both ice
+and liquid water content is zero, which applies for totally dry soil. 
+
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct PrescribedHydrologyModel{p1, p2} <: AbstractSoilModel
-    "Profile of (x,y,z,t) for ϑ_l"
-    ϑ_l_profile::p1
-    "Profile of (x,y,z,t) for θ_i"
-    θ_i_profile::p1
+Base.@kwdef struct PrescribedHydrologyModel <: AbstractSoilModel
+    "Profile of (z,t) for ϑ_l"
+    ϑ_l_profile::Function = (z,t) -> eltype(z)(0.0)
+    "Profile of (z,t) for θ_i"
+    θ_i_profile::Function = (z,t) -> eltype(z)(0.0)
 end
 
 
-"""
-    PrescribedHydrologyModel(
-        ϑ_l::Function = (x,y,z, t) -> eltype(x)(0.0),
-        θ_i::Function = (x,y,z, t) -> eltype(x)(0.0)
-    )
-Outer constructor for the PrescribedHydrologyModel. The default for both ice
-and liquid water content is zero, which applies for totally dry soil. 
-"""
-function PrescribedHydrologyModel(
-    ϑ_l::Function = (x, y, z, t) -> eltype(x)(0.0),
-    θ_i::Function = (x, y, z, t) -> eltype(x)(0.0),
-)
-    return PrescribedHydrologyModel{typeof(ϑ_l, θ_i)}(ϑ_l, θ_i)
-end
 
 """
     SoilModel{em <: AbstractSoilModel, hm <: AbstractSoilModel, A,B}

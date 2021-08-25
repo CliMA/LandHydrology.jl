@@ -1,9 +1,6 @@
 # Test heat equation agrees with analytic solution to problem 55
 # on page 28 in
 # https://ocw.mit.edu/courses/mathematics/18-303-linear-partial-differential-equations-fall-2006/lecture-notes/heateqni.pdf.
-# This assumes zero water content in the soil/Prescribed water model
-
-import ClimaCore.Geometry
 import ClimaCore:
     Fields,
     Domains,
@@ -21,16 +18,11 @@ const param_set = EarthParameterSet()
 using OrdinaryDiffEq:
     ODEProblem,
     solve,
-    SSPRK33,
-    Rosenbrock23,
-    Tsit5,
-    SSPRK432,
-    Feagin14,
-    TsitPap8,
     CarpenterKennedy2N54
 using DelimitedFiles
 using UnPack
 using LandHydrology
+using LandHydrology.SoilInterface
 using LandHydrology.SoilHeatParameterizations
 using Test
 using Statistics
@@ -42,14 +34,10 @@ abstract type bc end
 struct TDirichlet{FiT} <: bc
     T::FiT
 end
-function get_water_content(I)
-    FT = eltype(I)
-    return FT(0.0), FT(0.0)
-end
 
 function compute_soil_heat_rhs!(
-    dI,
-    I,
+    dY,
+    Y,
     t,
     p,
     top::TDirichlet,
@@ -59,11 +47,17 @@ function compute_soil_heat_rhs!(
     param_set = p[2]
     @unpack ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
 
-    θ_l, θ_i = get_water_content(I)# this is a stand in - need to get this from the soil state vector when we have water included. dispatch on soil water type - prescribed or dynamic
-    ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, param_set) # eventualyl will be different at top and bottom...
+    (Y_energy,) = Y.x
+    ρe_int = Y_energy.ρe_int
+    (dY_energy,) = dY.x
+    dρe_int = dY_energy.ρe_int
+    
+    θ_l, θ_i = 0.0, 0.0
+    
+    ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, param_set)
     Ttop = top.T(t)
     Tbot = bottom.T(t)
-    T = temperature_from_ρe_int.(I, θ_i, ρc_s, Ref(param_set))
+    T = temperature_from_ρe_int.(ρe_int, θ_i, ρc_s, Ref(param_set))
 
     κ_dry = k_dry(param_set, sp)
     S_r = relative_saturation(θ_l, θ_i, ν)
@@ -78,7 +72,8 @@ function compute_soil_heat_rhs!(
     )
     gradf2c = Operators.GradientF2C()
 
-    return @. dI = gradf2c(κ * gradc2f(T)) # κ is just a constant here - will be center Field eventually
+    @. dρe_int = gradf2c(κ * gradc2f(T)) # κ is just a constant here, eventually could be a field
+    return dY
 
 end
 ν = 0.495
@@ -123,12 +118,18 @@ mesh = Meshes.IntervalMesh(domain, nelems = n)
 cs = Spaces.CenterFiniteDifferenceSpace(mesh)
 fs = Spaces.FaceFiniteDifferenceSpace(cs)
 zc = Fields.coordinate_field(cs)
+function init_energy(z, soil_params, global_params)
+    T0 = 0.0
+    θ_l, θ_i = 0.0, 0.0
+    ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, param_set)
+    ρe_int = volumetric_internal_energy.(θ_i, ρc_s, T0, Ref(param_set))
+    return (ρe_int = ρe_int,)
+end
 
-T0 = Fields.zeros(FT, cs)
-θ_l, θ_i = get_water_content(T0)# this is a stand in - need to get this from the soil state vector when we have water included. dispatch on soil water type - prescribed or dynamic
-ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, param_set) # eventualyl will be different at top and bottom...
-I = volumetric_internal_energy.(θ_i, ρc_s, T0, Ref(param_set))
-
+energy_model = SoilEnergyModel(init_energy, nothing)
+hydrology_model = PrescribedHydrologyModel()
+soil_model  = SoilModel(energy_model, hydrology_model, msp, param_set)
+Y = init_prognostic_vars(soil_model, cs)
 tau = FT(1) # period (sec)
 A = FT(5) # amplitude (K)
 ω = FT(2 * pi / tau)
@@ -136,21 +137,18 @@ topbc = TDirichlet(t -> eltype(t)(0.0))
 bottombc = TDirichlet(t -> A * cos(ω * t))
 
 p = [msp, param_set, topbc, bottombc]
-function ∑tendencies!(dI, I, p, t)
+function ∑tendencies!(dY, Y, p, t)
     top = p[3]
     bot = p[4]
-    compute_soil_heat_rhs!(dI, I, t, p, top, bot)
+    compute_soil_heat_rhs!(dY,Y, t, p, top, bot)
 end
 
-prob = ODEProblem(∑tendencies!, I, (t0, tf), p)
+prob = ODEProblem(∑tendencies!, Y, (t0, tf), p)
 sol = solve(
     prob,
-    TsitPap8(),
+    CarpenterKennedy2N54(),
     dt = dt,
-    saveat = 60 * dt,
-    progress = true,
-    progress_message = (dt, u, p, t) -> t,
-);
+)
 
 t = sol.t
 z = parent(zc)[:]
@@ -160,9 +158,9 @@ num =
 denom = exp(sqrt(ω / 2) * (1 + im)) - exp.(-sqrt(ω / 2) * (1 + im))
 analytic_soln = real(num .* A * exp(im * ω * tf) / denom)
 
-Ifinal = parent(sol.u[end])[:]
-θ_l, θ_i = get_water_content(Ifinal)# this is a stand in - need to get this from the soil state vector when we have water included. dispatch on soil water type - prescribed or dynamic
+ρe_int_final = parent(sol.u[end].x[1].ρe_int)
+θ_l, θ_i = 0.0, 0.0
 ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, param_set)
-Tfinal = temperature_from_ρe_int.(Ifinal, θ_i, ρc_s, Ref(param_set))
+Tfinal = temperature_from_ρe_int.(ρe_int_final, θ_i, ρc_s, Ref(param_set))
 MSE = mean((analytic_soln .- Tfinal) .^ 2.0)
 @test MSE < 1e-2

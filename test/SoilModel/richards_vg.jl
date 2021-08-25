@@ -101,7 +101,7 @@ end
         return (ϑ_l = θl, θ_i = θ_i)
     end
     hydrology_model = SoilHydrologyModel(init_centers, nothing)
-    energy_model = PrescribedTemperatureModel(nothing)
+    energy_model = PrescribedTemperatureModel()
     soil_model = SoilModel(energy_model, hydrology_model, msp, param_set)
     Y = init_prognostic_vars(soil_model, cs)
 
