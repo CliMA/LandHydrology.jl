@@ -226,6 +226,7 @@ function init_energy(z, soil_params, global_params)
     return (ρe_int = ρe_int,)
 end
 
+
 hydrology_model = SoilHydrologyModel(init_hydrology, nothing)
 energy_model = SoilEnergyModel(init_energy, nothing)
 soil_model = SoilModel(energy_model, hydrology_model, msp, param_set)
@@ -235,6 +236,56 @@ function ∑tendencies!(dY, Y, p, t)
     #intermediate step to be added if needed
     compute_integrated_rhs!(dY, Y, t, p)
 end
+
+SubModel1 = ... 
+#SoilModel = NoSoil(T_prescribed = T(x,y,z,t), \theta_i = f)])
+SoilModel = FancySoil(args...; kwargs...)
+CoupledModel = ...
+main_model = MainModel(SubModel1, SoilModel, CoupledModel, ..., args...; kwargs...)
+
+SubIC1 = sub_ic1 # functions f(x, y, z, params; kwargs...) => f(x, y, z, params; T_sfc = FieldReader)
+SoilIC = soil_ic
+CoupledIC = coupled_ic
+ic = (SubIC1, SoilIC, ..., args...; kwargs...) # creates prognostic and aux components: Y = (Y_prog = (sub1 = Y1, soil = Y_soil, coupled = Y_coupled)
+
+function make_rhs(main_model)
+    rhs_sub1! = make_rhs(main_model.sub1) # rhs_sub1! updates dY.sub1 in place
+    rhs_soil! = make_rhs(main_model.soil) # ""
+    rhs_coupled! = make_rhs(main_model.coupled) # ""
+    function rhs!(dY, Y, p, t)
+        rhs_sub1!(dY.soil, Y, p, t)
+        rhs_soil!(dY.soil, Y, p, t)
+        rhs_coupled!(dY.soil, Y, p, t)
+    end
+
+    return rhs!
+end
+
+function make_rhs!(main_model)
+    rhs_list = []
+    for submodel in submodels:
+        push!(rhs_list, make_rhs(submodel))
+    end
+
+    function rhs!(dY, Y, p, t)
+        @unroll for (submodel, rhs!) in zip(submodels, rhs_list)
+            rhs!(
+                getproperty(dY, submodel),
+                getproperty(Y, submodel),
+                p,
+                t
+            )
+        end
+    end
+
+    return rhs!
+end
+
+# Y = (Y1, SoilY, ...)
+state = make_state(ic) # assembles a state, populates stuff needs to know that for SoilIC - dont add anything
+
+ic = ModelIC(canopy = canopy_ic, soil = soil_ic, river = river_ic,...)
+sim = Simulation(model, ic, stepper, dt, ...)
 
 prob = ODEProblem(∑tendencies!, Y, (t0, tf), p)
 
