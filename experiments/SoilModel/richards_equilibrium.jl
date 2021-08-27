@@ -31,7 +31,7 @@ using Statistics
 const FT = Float64
 
 # General soil composition
-ν = FT(0.395);
+ν = FT(0.495);
 
 #Water specific
 Ksat = FT(0.0443 / 3600 / 100) # m/s
@@ -75,7 +75,7 @@ water_bc = FluxBC(top_water_flux,bottom_water_flux)
 bc = SoilBC(hydrology_bc = water_bc)
 
 # create model
-soil_model = RichardsEquation((z,t)->0.0, bc, msp, param_set)
+soil_model = RichardsEquation(bc, msp, param_set)
 
 # initial conditions
 function hydrology_ic(z, model)
@@ -108,10 +108,10 @@ sol = solve(
 z = parent(zc)
 ϑ_l = [parent(sol.u[k].x[1].ϑ_l) for k in 1:length(sol.u)]
 
-indices = [1, 250, length(sol.t)]
-labels = ["IC", "415h", "864h"]
+indices = [1, 88, length(sol.t)]
+labels = ["IC", "6d", "36d"]
 plot1 = plot(
-    xlim = (0.4, 0.5),
+    xlim = (0.4, 0.525),
     ylim = (-10, 0),
     legend = :outerright,
     xlabel = "θ(z)",
@@ -121,5 +121,20 @@ for i in 1:1:length(indices)
     plot!(ϑ_l[indices[i]], z, label = labels[i], lw = 2)
 end
 
+
+
+function expected(z, z_interface)
+    ν = 0.495
+    S_s = 1e-3
+    α = 2.6
+    n = 2.0
+    m = 0.5
+    if z < z_interface
+        return -S_s * (z - z_interface) + ν
+    else
+        return ν * (1 + (α * (z - z_interface))^n)^(-m)
+    end
+end
+plot!(expected.(z, -0.56), z, lw =1, label = "expected");
 plot(plot1)
 #put expected on plot

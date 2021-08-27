@@ -3,17 +3,17 @@ export RichardsEquation,SoilHeatEquation, SoilModel, NoSoilModel
 abstract type AbstractSoilModel end
 
 """
-    Base.@kwdef struct SoilHeatEquation <: AbstractSoilModel
-        "Profile of (z,t) for θ_l"
-        θ_l_profile::Function = (z,t) -> eltype(z)(0.0)
-        "Profile of (z,t) for θ_i"
-        θ_i_profile::::Function = (z,t) -> eltype(z)(0.0)
+    struct SoilHeatEquation{bc, a, b, lp, ip} <: AbstractSoilModel
         "Boundary conditions tuple"
         boundary_conditions::bc
         "Soil parameters"
         soil_param_set::a
         "Earth parameter set"
         earth_param_set::b
+        "Profile of (z,t) for θ_l"
+        θ_l_profile::lp
+        "Profile of (z,t) for θ_i"
+        θ_i_profile::ip
     end
 
 The model type to be used when the user does not wish to solve
@@ -25,18 +25,30 @@ The default is completely dry soil.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-Base.@kwdef struct SoilHeatEquation <: AbstractSoilModel
-    "Profile of (z,t) for θ_l"
-    θ_l_profile::Function = (z,t) -> eltype(z)(0.0)
-    "Profile of (z,t) for θ_i"
-    θ_i_profile::Function = (z,t) -> eltype(z)(0.0)
+struct SoilHeatEquation{bc, a, b, lp, ip} <: AbstractSoilModel
     "Boundary conditions tuple"
     boundary_conditions::bc
     "Soil parameters"
     soil_param_set::a
     "Earth parameter set"
     earth_param_set::b
+    "Profile of (z,t) for θ_l"
+    θ_l_profile::lp
+    "Profile of (z,t) for θ_i"
+    θ_i_profile::ip
 end
+
+function SoilHeatEquation(
+    boundary_conditions,
+    soil_param_set,
+    earth_param_set;
+    θ_l_profile::Function = (z,t) -> eltype(z)(0.0),
+    θ_i_profile::Function = (z,t) -> eltype(z)(0.0),
+)
+    args = (boundary_conditions, soil_param_set, earth_param_set, θ_l_profile, θ_i_profile)
+    return SoilHeatEquation{typeof.(args)...}(args...)
+end
+
 
 """
     struct RichardsEquation{bc, a, b, tp} <: AbstractSoilModel
