@@ -13,12 +13,13 @@ Base.@kwdef struct SoilIC{h<: AbstractModelIC, e<: AbstractModelIC}
     energy::e = NoIC()
 end
 
-
+# could also dispatch on type of model, rather than type of IC?
 function create_initial_state(model::AbstractSoilModel, ic::SoilIC, zc)
     Y_hydrology = create_initial_state(ic.hydrology, zc, model)
     Y_energy = create_initial_state(ic.energy, zc, model)
     f(x) = length(x) > 0
     prognostic_vars = filter(f, (Y_hydrology, Y_energy))
+    # assert not empty?
     return ArrayPartition(prognostic_vars)
 end
 

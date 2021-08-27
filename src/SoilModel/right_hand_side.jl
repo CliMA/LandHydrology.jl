@@ -77,7 +77,10 @@ function make_rhs(model::SoilModel)
 end
 
 function make_rhs(model::RichardsEquation)
-    
+    # This duplicates code above. If we replaced the T line with a helper function, we could use the same code for
+    # the water side of RichardEquation and SoilModel. However, we'd then be extracting the water RHS as a standalone
+    # function - this is possible, but ends up duplicating a lot of code, because the heat RHS in the coupled case needs water parameters
+    # We'd need a helper function to (1) get T, (2) get water, (3) add diffusive water heat flux or not.
     function rhs!( dY, Y, p, t)
         (Y_hydro,) = Y.x
         (dY_hydro,) = dY.x
@@ -122,7 +125,6 @@ end
 
 
 function make_rhs(model::SoilHeatEquation)
-    
     function rhs!( dY, Y, p, t)
         (dY_energy,) = dY.x
         dρe_int = dY_energy.ρe_int

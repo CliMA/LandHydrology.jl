@@ -8,6 +8,12 @@ abstract type AbstractSoilModel end
         θ_l_profile::Function = (z,t) -> eltype(z)(0.0)
         "Profile of (z,t) for θ_i"
         θ_i_profile::::Function = (z,t) -> eltype(z)(0.0)
+        "Boundary conditions tuple"
+        boundary_conditions::bc
+        "Soil parameters"
+        soil_param_set::a
+        "Earth parameter set"
+        earth_param_set::b
     end
 
 The model type to be used when the user does not wish to solve
@@ -24,12 +30,24 @@ Base.@kwdef struct SoilHeatEquation <: AbstractSoilModel
     θ_l_profile::Function = (z,t) -> eltype(z)(0.0)
     "Profile of (z,t) for θ_i"
     θ_i_profile::Function = (z,t) -> eltype(z)(0.0)
+    "Boundary conditions tuple"
+    boundary_conditions::bc
+    "Soil parameters"
+    soil_param_set::a
+    "Earth parameter set"
+    earth_param_set::b
 end
 
 """
-    Base.@kwdef struct RichardsEquation <: AbstractSoilModel
+    struct RichardsEquation{bc, a, b, tp} <: AbstractSoilModel
+        "Boundary conditions tuple"
+        boundary_conditions::bc
+        "Soil parameters"
+        soil_param_set::a
+        "Earth parameter set"
+        earth_param_set::b
         "Profile of (z,t) for T"
-        T_profile::Function = (z,t) -> eltype(z)(288)
+        T_profile::tp
     end
 
 The model type to be used when the user wants to solve Richards equation.
@@ -40,16 +58,28 @@ mode the temperature dependence of conductivity. The default is no effect.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct RichardsEquation{tp, bc, a, b} <: AbstractSoilModel
-    "Profile of (z,t) for T"
-    T_profile::tp
+struct RichardsEquation{bc, a, b, tp} <: AbstractSoilModel
     "Boundary conditions tuple"
     boundary_conditions::bc
     "Soil parameters"
     soil_param_set::a
     "Earth parameter set"
     earth_param_set::b
+    "Profile of (z,t) for T"
+    T_profile::tp
 end
+
+
+function RichardsEquation(
+    boundary_conditions,
+    soil_param_set,
+    earth_param_set;
+    T_profile::Function = (z,t) -> eltype(z)(288.0)
+)
+    args = (boundary_conditions, soil_param_set, earth_param_set, T_profile)
+    return RichardsEquation{typeof.(args)...}(args...)
+end
+
 
 """
     NoSoilModel <: AbstractSoilModel
@@ -65,7 +95,7 @@ The model type for the soil model, when both energy and water flow are simulated
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilModel{ bc, A, B} <:
+struct SoilModel{bc, A, B} <:
        AbstractSoilModel
     "Boundary conditions tuple"
     boundary_conditions::bc
