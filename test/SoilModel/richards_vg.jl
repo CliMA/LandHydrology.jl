@@ -1,14 +1,10 @@
-import ClimaCore.Geometry
 import ClimaCore:
     Fields,
     Domains,
-    Topologies,
     Meshes,
-    DataLayouts,
     Operators,
-    Geometry,
-    Spaces
-#using DiffEqCallbacks
+    Spaces,
+    Geometry
 using OrdinaryDiffEq:
     ODEProblem,
     solve,
@@ -22,7 +18,8 @@ using OrdinaryDiffEq:
 using DelimitedFiles
 using UnPack
 using LandHydrology
-using LandHydrology.SoilWaterParameterizations
+using LandHydrology.SoilInterface: SoilParams
+using LandHydrology.SoilInterface.SoilWaterParameterizations
 using ArtifactWrappers
 using Test
 
@@ -66,12 +63,12 @@ function compute_richards_rhs!(
     bc_t = Operators.SetValue(h_top)
     gradc2f = Operators.GradientC2F(top = bc_t) # set value on h_top
 
-    bc_b = Operators.SetValue(FT(1) * parent(K)[1])
-    gradf2c = Operators.GradientF2C(bottom = bc_b) # set value on K∇h at bottom
+    bc_b = Operators.SetValue(Geometry.Cartesian3Vector(FT(1) * parent(K)[1]))
+    divf2c = Operators.DivergenceF2C(bottom = bc_b) # set value on K∇h at bottom
 
 
 
-    return @. dθl = gradf2c(If(K) * gradc2f(h))
+    return @. dθl = divf2c(If(K) * gradc2f(h))
 end
 
 @testset "Richards sand 1" begin
@@ -90,7 +87,8 @@ end
     tf = FT(60 * 60 * 0.8)
     t0 = FT(0)
 
-    msp = SoilWaterParams{FT}(ν, vgn, vgα, vgm, ksat, θr, FT(1e-3))
+    msp = SoilParams{FT}(ν, vgn, vgα, vgm, ksat, θr, FT(1e-3),
+                         0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0)
     bottom_bc = FreeDrainage()
     top_bc = θDirichlet(θl_surf)
     domain = Domains.IntervalDomain(z₀, z₁, x3boundary = (:bottom, :top))
