@@ -94,10 +94,15 @@ function make_rhs!(
         FT = eltype(zc)
 
         # boundary conditions and parameters
-        bc = model.boundary_conditions
-        top_water_flux, btm_water_flux =
-            compute_vertical_flux(bc.top.hydrology),
-            compute_vertical_flux(bc.bottom.hydrology)
+        faces = model.domain.x3boundary
+        bcs = getproperty.(Ref(model.boundary_conditions), faces)
+        fluxes = (;
+            zip(
+                faces,
+                return_fluxes.(Ref(Y), bcs, faces, Ref(model), Ref(cspace), t),
+            )...,
+        )
+
         sp = model.soil_param_set
         param_set = model.earth_param_set
         @unpack ν, vgn, vgα, vgm, ksat, θr, S_s, ρc_ds = sp
@@ -140,8 +145,12 @@ function make_rhs!(
         interpc2f = Operators.InterpolateC2F()
         gradc2f_water = Operators.GradientC2F()
         divf2c_water = Operators.DivergenceF2C(
-            top = Operators.SetValue(top_water_flux),
-            bottom = Operators.SetValue(btm_water_flux),
+            top = Operators.SetValue(
+                Geometry.Cartesian3Vector(fluxes.top.fϑ_l),
+            ),
+            bottom = Operators.SetValue(
+                Geometry.Cartesian3Vector(fluxes.bottom.fϑ_l),
+            ),
         )
 
         @. dϑ_l = -(divf2c_water(-interpc2f(K) * gradc2f_water(h))) #Richards equation
@@ -175,9 +184,15 @@ function make_rhs!(
         FT = eltype(zc)
 
         # boundary conditions and parameters
-        bc = model.boundary_conditions
-        top_heat_flux, btm_heat_flux = compute_vertical_flux(bc.top.energy),
-        compute_vertical_flux(bc.bottom.energy)
+        faces = model.domain.x3boundary
+        bcs = getproperty.(Ref(model.boundary_conditions), faces)
+        fluxes = (;
+            zip(
+                faces,
+                return_fluxes.(Ref(Y), bcs, faces, Ref(model), Ref(cspace), t),
+            )...,
+        )
+
         sp = model.soil_param_set
         param_set = model.earth_param_set
         @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
@@ -185,10 +200,11 @@ function make_rhs!(
         # update water content based on prescribed profiles, set RHS to zero.
         ϑ_l = hydrology.ϑ_l_profile.(zc, t)
         θ_i = hydrology.θ_i_profile.(zc, t)
+        dϑ_l = Fields.zeros(FT, cspace)
         dθ_i = Fields.zeros(FT, cspace)
-        dρe_int = Fields.zeros(FT, space)
 
         # Compute center values of everything
+        θ_l = ϑ_l
         ρc_s = volumetric_heat_capacity.(θ_l, θ_i, ρc_ds, Ref(param_set))
         T = temperature_from_ρe_int.(ρe_int, θ_i, ρc_s, Ref(param_set))
         κ_dry = k_dry(param_set, sp)
@@ -207,8 +223,12 @@ function make_rhs!(
         interpc2f = Operators.InterpolateC2F()
         gradc2f_heat = Operators.GradientC2F()
         divf2c_heat = Operators.DivergenceF2C(
-            top = Operators.SetValue(top_heat_flux),
-            bottom = Operators.SetValue(btm_heat_flux),
+            top = Operators.SetValue(
+                Geometry.Cartesian3Vector(fluxes.top.fρe_int),
+            ),
+            bottom = Operators.SetValue(
+                Geometry.Cartesian3Vector(fluxes.bottom.fρe_int),
+            ),
         )
         @. dρe_int = -divf2c_heat(-interpc2f(κ) * gradc2f_heat(T))
         return dY
@@ -238,12 +258,14 @@ function make_rhs!(
         FT = eltype(zc)
 
         # boundary conditions and parameters
-        bc = model.boundary_conditions
-        top_water_flux, btm_water_flux =
-            compute_vertical_flux(bc.top.hydrology),
-            compute_vertical_flux(bc.bottom.hydrology)
-        top_heat_flux, btm_heat_flux = compute_vertical_flux(bc.top.energy),
-        compute_vertical_flux(bc.bottom.energy)
+        faces = model.domain.x3boundary
+        bcs = getproperty.(Ref(model.boundary_conditions), faces)
+        fluxes = (;
+            zip(
+                faces,
+                return_fluxes.(Ref(Y), bcs, faces, Ref(model), Ref(cspace), t),
+            )...,
+        )
 
         sp = model.soil_param_set
         param_set = model.earth_param_set
@@ -293,14 +315,22 @@ function make_rhs!(
         interpc2f = Operators.InterpolateC2F()
         gradc2f_heat = Operators.GradientC2F()
         divf2c_heat = Operators.DivergenceF2C(
-            top = Operators.SetValue(top_heat_flux),
-            bottom = Operators.SetValue(btm_heat_flux),
+            top = Operators.SetValue(
+                Geometry.Cartesian3Vector(fluxes.top.fρe_int),
+            ),
+            bottom = Operators.SetValue(
+                Geometry.Cartesian3Vector(fluxes.bottom.fρe_int),
+            ),
         )
 
         gradc2f_water = Operators.GradientC2F()
         divf2c_water = Operators.DivergenceF2C(
-            top = Operators.SetValue(top_water_flux),
-            bottom = Operators.SetValue(btm_water_flux),
+            top = Operators.SetValue(
+                Geometry.Cartesian3Vector(fluxes.top.fϑ_l),
+            ),
+            bottom = Operators.SetValue(
+                Geometry.Cartesian3Vector(fluxes.bottom.fϑ_l),
+            ),
         )
 
         @. dϑ_l = -divf2c_water(-interpc2f(K) * gradc2f_water(h)) #Richards equation

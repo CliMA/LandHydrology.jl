@@ -4,6 +4,7 @@
 struct Column{FT} <: AbstractVerticalDomain{FT}
     zlim::Tuple{FT, FT}
     nelements::Int32
+    x3boundary::Tuple{Symbol, Symbol}
 end
 
 """
@@ -11,7 +12,8 @@ end
 """
 function Column(FT::DataType = Float64; zlim, nelements)
     @assert zlim[1] < zlim[2]
-    return Column{FT}(zlim, nelements)
+    x3boundary = (:bottom, :top)
+    return Column{FT}(zlim, nelements, x3boundary)
 end
 
 Base.ndims(::Column) = 1
@@ -38,7 +40,7 @@ function make_function_space(domain::Column{FT}) where {FT}
     column = ClimaCore.Domains.IntervalDomain(
         domain.zlim[1],
         domain.zlim[2];
-        x3boundary = (:bottom, :top),
+        domain.x3boundary,
     )
     mesh = Meshes.IntervalMesh(column; nelems = domain.nelements)
     center_space = Spaces.CenterFiniteDifferenceSpace(mesh)

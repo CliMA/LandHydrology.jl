@@ -3,7 +3,7 @@ import ClimaCore: Fields, Operators, Geometry
 using DocStringExtensions
 using UnPack
 
-using LandHydrology.Domains: AbstractVerticalDomain, make_function_space
+using LandHydrology.Domains: AbstractVerticalDomain, make_function_space, Column
 using LandHydrology.Models: AbstractModel
 include("SoilWaterParameterizations.jl")
 using .SoilWaterParameterizations

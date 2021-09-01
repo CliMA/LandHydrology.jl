@@ -87,6 +87,7 @@ top_heat_flux = FT(0)
 bottom_water_flux = FT(0)
 bottom_heat_flux = FT(0)
 bc = SoilDomainBC(
+    domain;
     top = SoilComponentBC(
         hydrology = VerticalFlux(top_water_flux),
         energy = VerticalFlux(top_heat_flux),
