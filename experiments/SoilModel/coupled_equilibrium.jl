@@ -1,8 +1,5 @@
-import ClimaCore:
-    Fields,
-    Domains,
-    Meshes,
-    Spaces
+import ClimaCore:    Fields
+
 
 using CLIMAParameters
 using CLIMAParameters.Planet: ρ_cloud_liq, ρ_cloud_ice, cp_l, cp_i, T_0, LH_f0
@@ -12,11 +9,11 @@ const param_set = EarthParameterSet()
 using OrdinaryDiffEq:
     ODEProblem,
     solve,
-    TsitPap8,
-    CarpenterKennedy2N54
+    SSPRK33
 using Plots
 using UnPack
 using LandHydrology
+using LandHydrology.Domains
 using LandHydrology.SoilInterface
 using LandHydrology.SoilInterface.SoilHeatParameterizations
 using LandHydrology.SoilInterface.SoilWaterParameterizations
@@ -84,12 +81,8 @@ n = 50
 
 zmax = FT(0)
 zmin = FT(-1)
-domain = Domains.IntervalDomain(zmin, zmax, x3boundary = (:bottom, :top))
-mesh = Meshes.IntervalMesh(domain, nelems = n)
+domain = Column(FT, zlim = (zmin, zmax), nelements = n)
 
-cs = Spaces.CenterFiniteDifferenceSpace(mesh)
-fs = Spaces.FaceFiniteDifferenceSpace(cs)
-zc = Fields.coordinate_field(cs)
 
 #Boundary conditions
 top_water_flux = FT(0)
@@ -103,7 +96,7 @@ bc = SoilDomainBC(top = SoilComponentBC(hydrology = VerticalFlux(top_water_flux)
 
 
 # create model
-soil_model = SoilModel(SoilEnergyModel(), SoilHydrologyModel(), bc, msp, param_set)
+soil_model = SoilModel(domain,SoilEnergyModel(), SoilHydrologyModel(), bc, msp, param_set)
 
 # initial conditions
 
@@ -141,17 +134,14 @@ end
 
 ic = SoilIC(; hydrology = hydrology_ic, energy = energy_ic)
 
-Y = create_initial_state(soil_model, ic, zc)
+Y = create_initial_state(soil_model, ic)
 soil_rhs! = make_rhs(soil_model)
-dY =  similar(Y)
-soil_rhs!(dY,Y,[],0.0)
 prob = ODEProblem(soil_rhs!, Y, (t0, tf), [])
 
 # solve simulation
 sol = solve(
     prob,
-    #TsitPap8(), doesnt work, ArgumentError: broadcasting over dictionaries and `NamedTuple`s is reserved
-    CarpenterKennedy2N54(), # this does work
+    SSPRK33(),
     dt = dt,
     saveat = 60 * dt,
     progress = true,
@@ -160,6 +150,8 @@ sol = solve(
 
 
 #Plotting
+space_c, _ = make_function_space(domain)
+zc = Fields.coordinate_field(space_c)
 z = parent(zc)
 ϑ_l = [parent(sol.u[k].x[1].ϑ_l) for k in 1:length(sol.u)]
 θ_i = [parent(sol.u[k].x[1].θ_i) for k in 1:length(sol.u)]

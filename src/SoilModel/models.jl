@@ -3,8 +3,9 @@ export SoilHydrologyModel,
     PrescribedTemperatureModel,
     PrescribedHydrologyModel,
     SoilEnergyModel
+using RecursiveArrayTools: ArrayPartition
 
-abstract type AbstractSoilModel end
+abstract type AbstractSoilComponentModel end
 """
     SoilEnergyModel
 The model type to be used when the user wants to simulate
@@ -13,7 +14,7 @@ heat transfer in soil by solving the heat partial differential equation.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilEnergyModel <: AbstractSoilModel
+struct SoilEnergyModel <: AbstractSoilComponentModel
 end
 
 """
@@ -25,11 +26,11 @@ the flow of water in soil by solving Richards equation.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilHydrologyModel <: AbstractSoilModel
+struct SoilHydrologyModel <: AbstractSoilComponentModel
 end
 
 """
-    Base.@kwdef struct PrescribedTemperatureModel <: AbstractSoilModel
+    Base.@kwdef struct PrescribedTemperatureModel <: AbstractSoilComponentModel
         "Profile of (z,t) for temperature"
          T_profile::Function = (z,t) -> eltype(z)(288)
     end
@@ -45,15 +46,15 @@ The default is 288K across the domain, the reference temperature for the viscosi
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-Base.@kwdef struct PrescribedTemperatureModel <: AbstractSoilModel
+Base.@kwdef struct PrescribedTemperatureModel <: AbstractSoilComponentModel
     "Profile of (z,t) for temperature"
-    T_profile::Function = (z,t) -> eltype(z)(288)
+    T_profile::Function = (z,t) -> eltype(t)(288)
 end
 
 
 
 """
-    Base.@kwdef struct PrescribedHydrologyModel <: AbstractSoilModel
+    Base.@kwdef struct PrescribedHydrologyModel <: AbstractSoilComponentModel
         "Profile of (z,t) for ϑ_l"
         ϑ_l_profile::Function = (z,t) -> eltype(z)(0.0)
         "Profile of (z,t) for θ_i"
@@ -71,7 +72,7 @@ and liquid water content is zero, which applies for totally dry soil.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-Base.@kwdef struct PrescribedHydrologyModel <: AbstractSoilModel
+Base.@kwdef struct PrescribedHydrologyModel <: AbstractSoilComponentModel
     "Profile of (z,t) for ϑ_l"
     ϑ_l_profile::Function = (z,t) -> eltype(z)(0.0)
     "Profile of (z,t) for θ_i"
@@ -88,8 +89,8 @@ The model type for the soil model.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilModel{em <: AbstractSoilModel, hm <: AbstractSoilModel, bc, A, B} <:
-       AbstractSoilModel
+struct SoilModel{FT, dm <: AbstractVerticalDomain{FT}, em <: AbstractSoilComponentModel, hm <: AbstractSoilComponentModel, bc, A, B} <: AbstractModel
+    domain::dm
     "Soil energy model - prescribed or dynamics"
     energy_model::em
     "Soil hydrology model - prescribed or dynamic"

@@ -1,9 +1,4 @@
-import ClimaCore:
-    Fields,
-    Domains,
-    Meshes,
-    Spaces
-
+using ClimaCore: Fields
 using CLIMAParameters
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
@@ -14,6 +9,7 @@ using OrdinaryDiffEq:
     CarpenterKennedy2N54,# does not work
     SSPRK33
 using LandHydrology
+using LandHydrology.Domains
 using LandHydrology.SoilInterface
 using LandHydrology.SoilInterface.SoilWaterParameterizations
 using LandHydrology.SoilInterface.SoilHeatParameterizations
@@ -64,12 +60,7 @@ using Test
     
     zmax = FT(0)
     zmin = FT(-10)
-    domain = Domains.IntervalDomain(zmin, zmax, x3boundary = (:bottom, :top))
-    mesh = Meshes.IntervalMesh(domain, nelems = n)
-    
-    cs = Spaces.CenterFiniteDifferenceSpace(mesh)
-    fs = Spaces.FaceFiniteDifferenceSpace(cs)
-    zc = Fields.coordinate_field(cs)
+    domain = Column(FT, zlim = (zmin, zmax), nelements = n)
     
     #Boundary conditions
     top_water_flux = FT(0)
@@ -78,7 +69,7 @@ using Test
                       bottom = SoilComponentBC(hydrology = VerticalFlux(bottom_water_flux)))
     
     # create model
-    soil_model = SoilModel(PrescribedTemperatureModel(), SoilHydrologyModel(), bc, msp, param_set)
+    soil_model = SoilModel(domain, PrescribedTemperatureModel(), SoilHydrologyModel(), bc, msp, param_set)
     
     # initial conditions
     
@@ -102,17 +93,13 @@ using Test
     
     ic = SoilIC(; hydrology = hydrology_ic, energy = energy_ic)
     
-    Y = create_initial_state(soil_model, ic, zc)
+    Y = create_initial_state(soil_model, ic)
     soil_rhs! = make_rhs(soil_model)
-   # dY =  similar(Y)
-   # soil_rhs!(dY,Y,[],0.0)
     prob = ODEProblem(soil_rhs!, Y, (t0, tf), [])
     
     # solve simulation
     sol = solve(
         prob,
-        #TsitPap8(), doesnt work, ArgumentError: broadcasting over dictionaries and `NamedTuple`s is reserved
-        #        CarpenterKennedy2N54(), # this does work
         SSPRK33(),
         dt = dt,
         saveat = 60 * dt,
@@ -120,7 +107,8 @@ using Test
         progress_message = (dt, u, p, t) -> t,
 );
     
-    
+    space_c, _ = make_function_space(domain)
+    zc = Fields.coordinate_field(space_c)
     z = parent(zc)
     ϑ_l = [parent(sol.u[k].x[1].ϑ_l) for k in 1:length(sol.u)]
     function expected(z, z_interface)
