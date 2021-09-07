@@ -1,4 +1,4 @@
-import ClimaCore:    Fields
+import ClimaCore: Fields
 
 
 using CLIMAParameters
@@ -96,11 +96,12 @@ bc = SoilDomainBC(top = SoilComponentBC(hydrology = VerticalFlux(top_water_flux)
 
 
 # create model
-soil_model = SoilModel(domain,SoilEnergyModel(), SoilHydrologyModel(), bc, msp, param_set)
+soil_model = SoilModel(domain = domain,energy_model = SoilEnergyModel(), hydrology_model = SoilHydrologyModel(),
+                       boundary_conditions = bc, soil_param_set = msp, earth_param_set = param_set)
 
 # initial conditions
 
-function energy_ic(z, model)
+function ic(z, t0, model)
     soil_param_set = model.soil_param_set
     earth_param_set = model.earth_param_set
     c = 20.0
@@ -115,26 +116,9 @@ function energy_ic(z, model)
     ρc_ds = soil_param_set.ρc_ds
     ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, earth_param_set)
     ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, earth_param_set)
-    return (;ρe_int = ρe_int,)
+    return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
 end
-
-
-function hydrology_ic(z, model)
-    θ_max = 0.1975
-    θ_min = 0.158
-    c = 20.0
-    zmin = -1.0
-    zmax = 0.0
-    
-    θ_i = 0.0
-    θ_l  = θ_min +
-        (θ_max - θ_min) * exp(-(z - zmax) / (zmin - zmax) * c)
-    return (ϑ_l = θ_l, θ_i = θ_i)
-end
-
-ic = SoilIC(; hydrology = hydrology_ic, energy = energy_ic)
-
-Y = create_initial_state(soil_model, ic)
+Y = set_initial_state(soil_model, ic, t0)
 soil_rhs! = make_rhs(soil_model)
 prob = ODEProblem(soil_rhs!, Y, (t0, tf), [])
 
@@ -153,13 +137,22 @@ sol = solve(
 space_c, _ = make_function_space(domain)
 zc = Fields.coordinate_field(space_c)
 z = parent(zc)
-ϑ_l = [parent(sol.u[k].x[1].ϑ_l) for k in 1:length(sol.u)]
-θ_i = [parent(sol.u[k].x[1].θ_i) for k in 1:length(sol.u)]
-ρe_int = [parent(sol.u[k].x[2].ρe_int) for k in 1:length(sol.u)]
+ϑ_l = [parent(sol.u[k].ϑ_l) for k in 1:length(sol.u)]
+θ_i = [parent(sol.u[k].θ_i) for k in 1:length(sol.u)]
+ρe_int = [parent(sol.u[k].ρe_int) for k in 1:length(sol.u)]
+#function expected(z, model)
+#    @unpack ν, vgα, vgm, vgn  =   model.soil_param_set
+#    C = -0.985118
+#    return ν*(1.0+(vgα*abs(-z +C))^vgn)^(-vgm)
+#end
+
+    
+
+
 indices = [1, 36, 72, 108, length(sol.t)]
 labels = ["IC", "18h", "36h", "54h", "72h"]
 plot1 = plot(
-    xlim = (0.1, 0.25),
+    xlim = (0.0, 0.4),
     ylim = (-1, 0),
     legend = :outerright,
     xlabel = "θ(z)",
@@ -168,6 +161,7 @@ plot1 = plot(
 for i in 1:1:length(indices)
     plot!(ϑ_l[indices[i]], z, label = labels[i], lw = 2)
 end
+#plot!(expected.(z,Ref(soil_model)),z, label= "Expected")
 plot2 =
     plot(ylim = (-1, 0), legend = :outerright, xlabel = "T(K)", ylabel = "z")
 for i in 1:1:length(indices)

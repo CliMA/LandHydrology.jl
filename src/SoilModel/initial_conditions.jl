@@ -1,21 +1,8 @@
-export SoilIC, create_initial_state
-using RecursiveArrayTools: ArrayPartition
-abstract type AbstractModelIC end
-
-struct SoilIC{H,E} <: AbstractModelIC
-    hydrology::H
-    energy::E
-end
-
-function SoilIC(;energy = energy, hydrology = hydrology)
-    args = (hydrology, energy)
-    return SoilIC{typeof.(args)...}(args...)
-end
-
-function create_initial_state(model::SoilModel, ic::SoilIC)
+export set_initial_state
+function set_initial_state(model::SoilModel, f::Function, t0::Real)
     space_c, _ = make_function_space(model.domain)
     zc = Fields.coordinate_field(space_c)
-    Y_hydrology = ic.hydrology.(zc, Ref(model))
-    Y_energy = ic.energy.(zc, Ref(model))
-    return ArrayPartition(Y_hydrology, Y_energy)
+    @unpack ϑ_l, θ_i, ρe_int = f.(zc, t0, Ref(model))
+    Y = Fields.FieldVector(ϑ_l = ϑ_l, θ_i = θ_i, ρe_int = ρe_int)
+    return Y
 end
