@@ -1,15 +1,37 @@
 export make_rhs
 
+"""
+    make_rhs(model::SoilModel)
+
+A function which takes a model::AbstractModel as argument, 
+and returns function which computes the rhs
+of a set of ordinary differential equations corresponding to
+that model.
+
+Currently, the arguments of the returned rhs function
+are configured for use with OrdinaryDiffEq.jl.
+For the soil model, the rhs function depends on the type of the 
+components of the model (the energy and hydrology models), as well as 
+whether additional sources are included.
+"""
 function make_rhs(model::SoilModel)
     rhs_soil! = make_rhs!(model.energy_model, model.hydrology_model, model)
-    function rhs!( dY, Y, p, t)
-        rhs_soil!(dY,Y,p,t) 
+    function rhs!(dY, Y, p, t)
+        rhs_soil!(dY, Y, p, t)
         return dY
     end
     return rhs!
 end
 
-function make_rhs!(energy::PrescribedTemperatureModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
+"""
+    make_rhs!(energy::PrescribedTemperatureModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
+
+"""
+function make_rhs!(
+    energy::PrescribedTemperatureModel,
+    hydrology::PrescribedHydrologyModel,
+    model::SoilModel,
+)
     function rhs!(dY, Y, _, t)
         dϑ_l = dY.ϑ_l
         dθ_i = dY.θ_i
@@ -23,23 +45,42 @@ function make_rhs!(energy::PrescribedTemperatureModel, hydrology::PrescribedHydr
         θ_i = hydrology.θ_i_profile.(zc, t)
         θ_l = ϑ_l # eventually have a conversion to liquid water content
         T = energy.T_profile.(zc, t)
-        ρc_s = volumetric_heat_capacity.(θ_l, θ_i, model.soil_param_set.ρc_ds, Ref(model.earth_param_set))
-        ρe_int = volumetric_internal_energy.(θ_i, ρc_s, T, Ref(model.earth_param_set))
-        
+        ρc_s =
+            volumetric_heat_capacity.(
+                θ_l,
+                θ_i,
+                model.soil_param_set.ρc_ds,
+                Ref(model.earth_param_set),
+            )
+        ρe_int =
+            volumetric_internal_energy.(
+                θ_i,
+                ρc_s,
+                T,
+                Ref(model.earth_param_set),
+            )
+
         # RHS is zero
         space = axes(ϑ_l)
         zc = Fields.coordinate_field(cspace)
         FT = eltype(zc)
-        dϑ_l = Fields.zeros(FT,cspace)
-        dθ_i = Fields.zeros(FT,cspace)
-        dρe_int = Fields.zeros(FT,cspace)
+        dϑ_l = Fields.zeros(FT, cspace)
+        dθ_i = Fields.zeros(FT, cspace)
+        dρe_int = Fields.zeros(FT, cspace)
         return dY
     end
     return rhs!
 end
 
-# Richards equation with temperature dependent hydraulic conductivity (optional)
-function make_rhs!(energy::PrescribedTemperatureModel, hydrology::SoilHydrologyModel, model::SoilModel)
+"""
+    make_rhs!(energy::PrescribedTemperatureModel, hydrology::SoilHydrologyModel, model::SoilModel)
+
+"""
+function make_rhs!(
+    energy::PrescribedTemperatureModel,
+    hydrology::SoilHydrologyModel,
+    model::SoilModel,
+)
     function rhs!(dY, Y, _, t)
         dϑ_l = dY.ϑ_l
         dθ_i = dY.θ_i
@@ -51,32 +92,47 @@ function make_rhs!(energy::PrescribedTemperatureModel, hydrology::SoilHydrologyM
         cspace = axes(ϑ_l)
         zc = Fields.coordinate_field(cspace)
         FT = eltype(zc)
-        
+
         # boundary conditions and parameters
         bc = model.boundary_conditions
-        top_water_flux, btm_water_flux = compute_vertical_flux(bc.top.hydrology), compute_vertical_flux(bc.bottom.hydrology)
+        top_water_flux, btm_water_flux =
+            compute_vertical_flux(bc.top.hydrology),
+            compute_vertical_flux(bc.bottom.hydrology)
         sp = model.soil_param_set
-        param_set= model.earth_param_set
+        param_set = model.earth_param_set
         @unpack ν, vgn, vgα, vgm, ksat, θr, S_s, ρc_ds = sp
-        
+
         # Evaluate T at the current time, update ρe_int
         θ_l = ϑ_l
         T = energy.T_profile.(zc, t)
-        ρc_s = volumetric_heat_capacity.(θ_l, θ_i, model.soil_param_set.ρc_ds, Ref(model.earth_param_set))
-        ρe_int = volumetric_internal_energy.(θ_i, ρc_s, T, Ref(model.earth_param_set))
-        
+        ρc_s =
+            volumetric_heat_capacity.(
+                θ_l,
+                θ_i,
+                model.soil_param_set.ρc_ds,
+                Ref(model.earth_param_set),
+            )
+        ρe_int =
+            volumetric_internal_energy.(
+                θ_i,
+                ρc_s,
+                T,
+                Ref(model.earth_param_set),
+            )
+
         # Compute hydraulic head, conductivity
         S = effective_saturation.(θ_l; ν = ν, θr = θr)
         K = hydraulic_conductivity.(S; vgm = vgm, ksat = ksat)
-        ψ = pressure_head.(
-            S;
-            vgn = vgn,
-            vgα = vgα,
-            vgm = vgm,
-            ν = ν,
-            θr = θr,
-            S_s = S_s,
-        )
+        ψ =
+            pressure_head.(
+                S;
+                vgn = vgn,
+                vgα = vgα,
+                vgm = vgm,
+                ν = ν,
+                θr = θr,
+                S_s = S_s,
+            )
 
         h = ψ .+ zc
 
@@ -87,18 +143,25 @@ function make_rhs!(energy::PrescribedTemperatureModel, hydrology::SoilHydrologyM
             top = Operators.SetValue(top_water_flux),
             bottom = Operators.SetValue(btm_water_flux),
         )
-        
+
         @. dϑ_l = -(divf2c_water(-interpc2f(K) * gradc2f_water(h))) #Richards equation
-        dθ_i = Fields.zeros(FT,cspace)
-        dρe_int = Fields.zeros(FT,cspace)
+        dθ_i = Fields.zeros(FT, cspace)
+        dρe_int = Fields.zeros(FT, cspace)
 
         return dY
     end
     return rhs!
 end
 
-# Simple heat equation in soil. Water profile is prescribed. No heat flux due to diffusion of water.
-function make_rhs!(energy::SoilEnergyModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
+"""
+    make_rhs!(energy::SoilEnergyModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
+
+"""
+function make_rhs!(
+    energy::SoilEnergyModel,
+    hydrology::PrescribedHydrologyModel,
+    model::SoilModel,
+)
     function rhs!(dY, Y, _, t)
         dϑ_l = dY.ϑ_l
         dθ_i = dY.θ_i
@@ -106,23 +169,24 @@ function make_rhs!(energy::SoilEnergyModel, hydrology::PrescribedHydrologyModel,
         ϑ_l = Y.ϑ_l
         θ_i = Y.θ_i
         ρe_int = Y.ρe_int
-        
+
         cspace = axes(ϑ_l)
         zc = Fields.coordinate_field(cspace)
         FT = eltype(zc)
-        
+
         # boundary conditions and parameters
         bc = model.boundary_conditions
-        top_heat_flux, btm_heat_flux = compute_vertical_flux(bc.top.energy), compute_vertical_flux(bc.bottom.energy)
+        top_heat_flux, btm_heat_flux = compute_vertical_flux(bc.top.energy),
+        compute_vertical_flux(bc.bottom.energy)
         sp = model.soil_param_set
-        param_set= model.earth_param_set
+        param_set = model.earth_param_set
         @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
 
         # update water content based on prescribed profiles, set RHS to zero.
         ϑ_l = hydrology.ϑ_l_profile.(zc, t)
         θ_i = hydrology.θ_i_profile.(zc, t)
-        dθ_i = Fields.zeros(FT,cspace)
-        dρe_int = Fields.zeros(FT,space)
+        dθ_i = Fields.zeros(FT, cspace)
+        dρe_int = Fields.zeros(FT, space)
 
         # Compute center values of everything
         ρc_s = volumetric_heat_capacity.(θ_l, θ_i, ρc_ds, Ref(param_set))
@@ -131,7 +195,12 @@ function make_rhs!(energy::SoilEnergyModel, hydrology::PrescribedHydrologyModel,
         S_r = relative_saturation.(θ_l, θ_i, ν)
         kersten = kersten_number.(θ_i, S_r, Ref(sp))
         κ_sat =
-            saturated_thermal_conductivity.(θ_l, θ_i, κ_sat_unfrozen, κ_sat_frozen)
+            saturated_thermal_conductivity.(
+                θ_l,
+                θ_i,
+                κ_sat_unfrozen,
+                κ_sat_frozen,
+            )
         κ = thermal_conductivity.(κ_dry, kersten, κ_sat)
 
         # rhs operators
@@ -141,17 +210,21 @@ function make_rhs!(energy::SoilEnergyModel, hydrology::PrescribedHydrologyModel,
             top = Operators.SetValue(top_heat_flux),
             bottom = Operators.SetValue(btm_heat_flux),
         )
-        @. dρe_int =
-            -divf2c_heat(
-                -interpc2f(κ) * gradc2f_heat(T))
+        @. dρe_int = -divf2c_heat(-interpc2f(κ) * gradc2f_heat(T))
         return dY
     end
     return rhs!
 end
 
-# Full model without phase changes
+"""
+    make_rhs!(energy::SoilEnergyModel, hydrology::SoilHydrologyModel, model::SoilModel)
 
-function make_rhs!(energy::SoilEnergyModel, hydrology::SoilHydrologyModel, model::SoilModel)
+"""
+function make_rhs!(
+    energy::SoilEnergyModel,
+    hydrology::SoilHydrologyModel,
+    model::SoilModel,
+)
     function rhs!(dY, Y, _, t)
         dϑ_l = dY.ϑ_l
         dθ_i = dY.θ_i
@@ -163,16 +236,28 @@ function make_rhs!(energy::SoilEnergyModel, hydrology::SoilHydrologyModel, model
         cspace = axes(ϑ_l)
         zc = Fields.coordinate_field(cspace)
         FT = eltype(zc)
-        
+
         # boundary conditions and parameters
         bc = model.boundary_conditions
-        top_water_flux, btm_water_flux = compute_vertical_flux(bc.top.hydrology), compute_vertical_flux(bc.bottom.hydrology)
-        top_heat_flux, btm_heat_flux = compute_vertical_flux(bc.top.energy), compute_vertical_flux(bc.bottom.energy)
+        top_water_flux, btm_water_flux =
+            compute_vertical_flux(bc.top.hydrology),
+            compute_vertical_flux(bc.bottom.hydrology)
+        top_heat_flux, btm_heat_flux = compute_vertical_flux(bc.top.energy),
+        compute_vertical_flux(bc.bottom.energy)
 
         sp = model.soil_param_set
-        param_set= model.earth_param_set
-        @unpack ν, vgn, vgα, vgm, ksat, θr, S_s, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
-        
+        param_set = model.earth_param_set
+        @unpack ν,
+        vgn,
+        vgα,
+        vgm,
+        ksat,
+        θr,
+        S_s,
+        ρc_ds,
+        κ_sat_unfrozen,
+        κ_sat_frozen = sp
+
         # Compute center values of everything
         θ_l = ϑ_l
         ρc_s = volumetric_heat_capacity.(θ_l, θ_i, ρc_ds, Ref(param_set))
@@ -181,21 +266,27 @@ function make_rhs!(energy::SoilEnergyModel, hydrology::SoilHydrologyModel, model
         S_r = relative_saturation.(θ_l, θ_i, ν)
         kersten = kersten_number.(θ_i, S_r, Ref(sp))
         κ_sat =
-            saturated_thermal_conductivity.(θ_l, θ_i, κ_sat_unfrozen, κ_sat_frozen)
+            saturated_thermal_conductivity.(
+                θ_l,
+                θ_i,
+                κ_sat_unfrozen,
+                κ_sat_frozen,
+            )
         κ = thermal_conductivity.(κ_dry, kersten, κ_sat)
         ρe_int_l = volumetric_internal_energy_liq.(T, Ref(param_set))
-        
+
         S = effective_saturation.(θ_l; ν = ν, θr = θr)
         K = hydraulic_conductivity.(S; vgm = vgm, ksat = ksat)
-        ψ = pressure_head.(
-            S;
-            vgn = vgn,
-            vgα = vgα,
-            vgm = vgm,
-            ν = ν,
-            θr = θr,
-            S_s = S_s,
-        )
+        ψ =
+            pressure_head.(
+                S;
+                vgn = vgn,
+                vgα = vgα,
+                vgm = vgm,
+                ν = ν,
+                θr = θr,
+                S_s = S_s,
+            )
         h = ψ .+ zc
 
         # rhs operators
@@ -205,15 +296,15 @@ function make_rhs!(energy::SoilEnergyModel, hydrology::SoilHydrologyModel, model
             top = Operators.SetValue(top_heat_flux),
             bottom = Operators.SetValue(btm_heat_flux),
         )
-        
+
         gradc2f_water = Operators.GradientC2F()
         divf2c_water = Operators.DivergenceF2C(
             top = Operators.SetValue(top_water_flux),
             bottom = Operators.SetValue(btm_water_flux),
         )
-        
+
         @. dϑ_l = -divf2c_water(-interpc2f(K) * gradc2f_water(h)) #Richards equation
-        dθ_i = Fields.zeros(FT,cspace)
+        dθ_i = Fields.zeros(FT, cspace)
 
         @. dρe_int =
             -divf2c_heat(

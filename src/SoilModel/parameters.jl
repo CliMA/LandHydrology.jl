@@ -2,6 +2,9 @@ export SoilParams
 
 abstract type ParameterStructure{FT <: AbstractFloat} end
 
+"""
+    struct SoilParams{FT} <: ParameterStructure{FT}
+"""
 struct SoilParams{FT} <: ParameterStructure{FT}
     ν::FT
     vgn::FT
@@ -22,4 +25,3 @@ struct SoilParams{FT} <: ParameterStructure{FT}
     b::FT
     κ_dry_parameter::FT
 end
-

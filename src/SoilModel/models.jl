@@ -13,8 +13,7 @@ heat transfer in soil by solving the heat partial differential equation.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilEnergyModel <: AbstractSoilComponentModel
-end
+struct SoilEnergyModel <: AbstractSoilComponentModel end
 
 """
     SoilHydrologyModel
@@ -25,8 +24,7 @@ the flow of water in soil by solving Richards equation.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilHydrologyModel <: AbstractSoilComponentModel
-end
+struct SoilHydrologyModel <: AbstractSoilComponentModel end
 
 """
     Base.@kwdef struct PrescribedTemperatureModel <: AbstractSoilComponentModel
@@ -47,7 +45,7 @@ $(DocStringExtensions.FIELDS)
 """
 Base.@kwdef struct PrescribedTemperatureModel <: AbstractSoilComponentModel
     "Profile of (z,t) for temperature"
-    T_profile::Function = (z,t) -> eltype(t)(288)
+    T_profile::Function = (z, t) -> eltype(t)(288)
 end
 
 
@@ -73,9 +71,9 @@ $(DocStringExtensions.FIELDS)
 """
 Base.@kwdef struct PrescribedHydrologyModel <: AbstractSoilComponentModel
     "Profile of (z,t) for ϑ_l"
-    ϑ_l_profile::Function = (z,t) -> eltype(z)(0.0)
+    ϑ_l_profile::Function = (z, t) -> eltype(z)(0.0)
     "Profile of (z,t) for θ_i"
-    θ_i_profile::Function = (z,t) -> eltype(z)(0.0)
+    θ_i_profile::Function = (z, t) -> eltype(z)(0.0)
 end
 
 
@@ -88,7 +86,15 @@ The model type for the soil model.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-Base.@kwdef struct SoilModel{FT, dm <: AbstractVerticalDomain{FT}, em <: AbstractSoilComponentModel, hm <: AbstractSoilComponentModel, bc, A, B} <: AbstractModel
+Base.@kwdef struct SoilModel{
+    FT,
+    dm <: AbstractVerticalDomain{FT},
+    em <: AbstractSoilComponentModel,
+    hm <: AbstractSoilComponentModel,
+    bc,
+    A,
+    B,
+} <: AbstractModel
     domain::dm
     "Soil energy model - prescribed or dynamics"
     energy_model::em
@@ -109,4 +115,3 @@ end
 
 include("boundary_conditions.jl")
 include("right_hand_side.jl")
-

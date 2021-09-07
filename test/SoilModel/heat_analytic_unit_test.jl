@@ -3,13 +3,7 @@
 # https://ocw.mit.edu/courses/mathematics/18-303-linear-partial-differential-equations-fall-2006/lecture-notes/heateqni.pdf.
 # This assumes zero water content in the soil/Prescribed water model
 
-import ClimaCore:
-    Fields,
-    Domains,
-    Meshes,
-    Operators,
-    Spaces,
-    Geometry
+import ClimaCore: Fields, Domains, Meshes, Operators, Spaces, Geometry
 
 using CLIMAParameters
 struct EarthParameterSet <: AbstractEarthParameterSet end
@@ -112,42 +106,42 @@ end
         b,
         κ_dry_parameter,
     )
-    
-    
+
+
     t0 = FT(0)
     tf = FT(2)
     dt = FT(1e-4)
     n = 60
-    
+
     # Specify the domain boundaries
     zmax = FT(1)
     zmin = FT(0)
     domain = Domains.IntervalDomain(zmin, zmax, x3boundary = (:bottom, :top))
     mesh = Meshes.IntervalMesh(domain, nelems = n)
-    
+
     cs = Spaces.CenterFiniteDifferenceSpace(mesh)
     fs = Spaces.FaceFiniteDifferenceSpace(cs)
     zc = Fields.coordinate_field(cs)
-    
+
     T0 = Fields.zeros(FT, cs)
     θ_l, θ_i = get_water_content(T0)# this is a stand in - need to get this from the soil state vector when we have water included. dispatch on soil water type - prescribed or dynamic
     ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, param_set) # eventualyl will be different at top and bottom...
     I = volumetric_internal_energy.(θ_i, ρc_s, T0, Ref(param_set))
-    
+
     tau = FT(1) # period (sec)
     A = FT(5) # amplitude (K)
     ω = FT(2 * pi / tau)
     topbc = TDirichlet(t -> eltype(t)(0.0))
     bottombc = TDirichlet(t -> A * cos(ω * t))
-    
+
     p = [msp, param_set, topbc, bottombc]
     function ∑tendencies!(dI, I, p, t)
         top = p[3]
         bot = p[4]
         compute_soil_heat_rhs!(dI, I, t, p, top, bot)
     end
-    
-prob = ODEProblem(∑tendencies!, I, (t0, tf), p)
+
+    prob = ODEProblem(∑tendencies!, I, (t0, tf), p)
     sol = solve(
         prob,
         TsitPap8(),
@@ -155,8 +149,8 @@ prob = ODEProblem(∑tendencies!, I, (t0, tf), p)
         saveat = 60 * dt,
         progress = true,
         progress_message = (dt, u, p, t) -> t,
-    );
-    
+    )
+
     t = sol.t
     z = parent(zc)[:]
     num =

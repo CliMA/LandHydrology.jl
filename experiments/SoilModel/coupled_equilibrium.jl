@@ -6,10 +6,7 @@ using CLIMAParameters.Planet: ρ_cloud_liq, ρ_cloud_ice, cp_l, cp_i, T_0, LH_f0
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 
-using OrdinaryDiffEq:
-    ODEProblem,
-    solve,
-    SSPRK33
+using OrdinaryDiffEq: ODEProblem, solve, SSPRK33
 using Plots
 using UnPack
 using LandHydrology
@@ -89,15 +86,27 @@ top_water_flux = FT(0)
 top_heat_flux = FT(0)
 bottom_water_flux = FT(0)
 bottom_heat_flux = FT(0)
-bc = SoilDomainBC(top = SoilComponentBC(hydrology = VerticalFlux(top_water_flux),
-                                        energy = VerticalFlux(top_heat_flux)),
-                  bottom = SoilComponentBC(hydrology = VerticalFlux(bottom_water_flux),
-                                           energy = VerticalFlux(bottom_heat_flux)))
+bc = SoilDomainBC(
+    top = SoilComponentBC(
+        hydrology = VerticalFlux(top_water_flux),
+        energy = VerticalFlux(top_heat_flux),
+    ),
+    bottom = SoilComponentBC(
+        hydrology = VerticalFlux(bottom_water_flux),
+        energy = VerticalFlux(bottom_heat_flux),
+    ),
+)
 
 
 # create model
-soil_model = SoilModel(domain = domain,energy_model = SoilEnergyModel(), hydrology_model = SoilHydrologyModel(),
-                       boundary_conditions = bc, soil_param_set = msp, earth_param_set = param_set)
+soil_model = SoilModel(
+    domain = domain,
+    energy_model = SoilEnergyModel(),
+    hydrology_model = SoilHydrologyModel(),
+    boundary_conditions = bc,
+    soil_param_set = msp,
+    earth_param_set = param_set,
+)
 
 # initial conditions
 
@@ -110,8 +119,7 @@ function ic(z, t0, model)
     θ_max = 0.1975
     θ_min = 0.158
     θ_i = 0.0
-    θ_l  = θ_min +
-        (θ_max - θ_min) * exp(-(z - zmax) / (zmin - zmax) * c)
+    θ_l = θ_min + (θ_max - θ_min) * exp(-(z - zmax) / (zmin - zmax) * c)
     T = 288.0 + (289.0 - 288.0) * exp(-(z - zmax) / (zmin - zmax) * c)
     ρc_ds = soil_param_set.ρc_ds
     ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, earth_param_set)
@@ -146,7 +154,7 @@ z = parent(zc)
 #    return ν*(1.0+(vgα*abs(-z +C))^vgn)^(-vgm)
 #end
 
-    
+
 
 
 indices = [1, 36, 72, 108, length(sol.t)]

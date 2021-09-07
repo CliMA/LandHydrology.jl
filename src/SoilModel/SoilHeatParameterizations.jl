@@ -35,6 +35,7 @@ export volumetric_heat_capacity,
         ρc_s::FT,
         param_set::AbstractParameterSet
     ) where {FT}
+
 Computes the temperature of soil given `θ_i` and volumetric
 internal energy `ρe_int`.
 """
@@ -58,6 +59,7 @@ end
         ρc_ds::FT,
         param_set::AbstractParameterSet
     ) where {FT}
+
 Compute the expression for volumetric heat capacity.
 """
 function volumetric_heat_capacity(
@@ -83,6 +85,7 @@ end
         T::FT,
         param_set::AbstractParameterSet
     ) where {FT}
+
 Compute the expression for volumetric internal energy.
 """
 function volumetric_internal_energy(
@@ -105,6 +108,7 @@ end
         κ_sat_unfrozen::FT,
         κ_sat_frozen::FT
     ) where {FT}
+
 Compute the expression for saturated thermal conductivity of soil matrix.
 """
 function saturated_thermal_conductivity(
@@ -129,6 +133,7 @@ end
             θ_i::FT,
             porosity::FT
     ) where {FT}
+
 Compute the expression for relative saturation.
 """
 function relative_saturation(θ_l::FT, θ_i::FT, porosity::FT) where {FT}
@@ -141,6 +146,7 @@ end
         S_r::FT,
         soil_param_functions::PS
     ) where {FT, PS}
+
 Compute the expression for the Kersten number.
 """
 function kersten_number(
@@ -173,6 +179,7 @@ end
         K_e::FT,
         κ_sat::FT
     ) where {FT}
+
 Compute the expression for thermal conductivity of soil matrix.
 """
 function thermal_conductivity(κ_dry::FT, K_e::FT, κ_sat::FT) where {FT}
@@ -185,6 +192,7 @@ end
         T::FT,
         T_ref::FT,
     ) where {FT}
+
 Compute the expression for the volumetric internal energy of liquid water.
 """
 function volumetric_internal_energy_liq(
@@ -206,6 +214,7 @@ end
         κ_minerals::FT,
         κ_om::FT,
     ) where {FT}
+
 Computes the thermal conductivity of the solid material in soil.
 The `_ss_` subscript denotes that the volumetric fractions of the soil
 components are referred to the soil solid components, not including the pore
@@ -230,6 +239,7 @@ end
         porosity::FT,
         κ_ice::FT
     ) where {FT}
+
 Computes the thermal conductivity for saturated frozen soil.
 """
 function ksat_frozen(κ_solid::FT, porosity::FT, κ_ice::FT) where {FT}
@@ -242,6 +252,7 @@ end
         porosity::FT,
         κ_l::FT
     ) where {FT}
+
 Computes the thermal conductivity for saturated unfrozen soil.
 """
 function ksat_unfrozen(κ_solid::FT, porosity::FT, κ_l::FT) where {FT}
@@ -250,6 +261,7 @@ end
 
 """
     function ρb_ss(porosity::FT, ρp::FT) where {FT}
+
 Computes the dry soil bulk density from the dry soil particle
 density.
 """
@@ -262,6 +274,7 @@ end
         param_set::AbstractParameterSet
         soil_param_functions::PS,
     ) where {PS}
+
 Computes the thermal conductivity of dry soil.
 """
 function k_dry(
