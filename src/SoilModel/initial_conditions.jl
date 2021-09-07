@@ -12,7 +12,9 @@ function SoilIC(;energy = energy, hydrology = hydrology)
     return SoilIC{typeof.(args)...}(args...)
 end
 
-function create_initial_state(model::SoilModel, ic::SoilIC, zc)
+function create_initial_state(model::SoilModel, ic::SoilIC)
+    space_c, _ = make_function_space(model.domain)
+    zc = Fields.coordinate_field(space_c)
     Y_hydrology = ic.hydrology.(zc, Ref(model))
     Y_energy = ic.energy.(zc, Ref(model))
     return ArrayPartition(Y_hydrology, Y_energy)
