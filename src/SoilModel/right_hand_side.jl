@@ -11,13 +11,12 @@ end
 
 function make_rhs!(energy::PrescribedTemperatureModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
     function rhs!(dY, Y, _, t)
-        (Y_hydro, Y_energy) = Y.x
-        @unpack ϑ_l, θ_i = Y_hydro
-        @unpack ρe_int = Y_energy
-        (dY_hydro, dY_energy) = dY.x
-        dρe_int = dY_energy.ρe_int
-        dϑ_l = dY_hydro.ϑ_l
-        dθ_i = dY_hydro.θ_i
+        dϑ_l = dY.ϑ_l
+        dθ_i = dY.θ_i
+        dρe_int = dY.ρe_int
+        ϑ_l = Y.ϑ_l
+        θ_i = Y.θ_i
+        ρe_int = Y.ρe_int
 
         #update the state Y with prescribed values at the current time
         ϑ_l = hydrology.ϑ_l_profile.(zc, t)
@@ -42,14 +41,12 @@ end
 # Richards equation with temperature dependent hydraulic conductivity (optional)
 function make_rhs!(energy::PrescribedTemperatureModel, hydrology::SoilHydrologyModel, model::SoilModel)
     function rhs!(dY, Y, _, t)
-        (dY_hydro, dY_energy) = dY.x
-        dϑ_l = dY_hydro.ϑ_l
-        dθ_i = dY_hydro.θ_i
-        dρe_int = dY_energy.ρe_int
-
-        (Y_hydro, Y_energy) = Y.x
-        @unpack ϑ_l, θ_i = Y_hydro
-        @unpack ρe_int = Y_energy
+        dϑ_l = dY.ϑ_l
+        dθ_i = dY.θ_i
+        dρe_int = dY.ρe_int
+        ϑ_l = Y.ϑ_l
+        θ_i = Y.θ_i
+        ρe_int = Y.ρe_int
 
         cspace = axes(ϑ_l)
         zc = Fields.coordinate_field(cspace)
@@ -103,14 +100,13 @@ end
 # Simple heat equation in soil. Water profile is prescribed. No heat flux due to diffusion of water.
 function make_rhs!(energy::SoilEnergyModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
     function rhs!(dY, Y, _, t)
-        (dY_hydro, dY_energy) = dY.x
-        dρe_int = dY_energy.ρe_int
-        dϑ_l = dY_hydro.ϑ_l
-        dθ_i = dY_hydro.θ_i
-        (Y_hydro, Y_energy) = Y.x
-        @unpack ϑ_l, θ_i = Y_hydro
-        @unpack ρe_int = Y_energy
-
+        dϑ_l = dY.ϑ_l
+        dθ_i = dY.θ_i
+        dρe_int = dY.ρe_int
+        ϑ_l = Y.ϑ_l
+        θ_i = Y.θ_i
+        ρe_int = Y.ρe_int
+        
         cspace = axes(ϑ_l)
         zc = Fields.coordinate_field(cspace)
         FT = eltype(zc)
@@ -157,13 +153,12 @@ end
 
 function make_rhs!(energy::SoilEnergyModel, hydrology::SoilHydrologyModel, model::SoilModel)
     function rhs!(dY, Y, _, t)
-        (dY_hydro, dY_energy) = dY.x
-        dρe_int = dY_energy.ρe_int
-        dϑ_l = dY_hydro.ϑ_l
-        dθ_i = dY_hydro.θ_i
-        (Y_hydro, Y_energy) = Y.x
-        @unpack ϑ_l, θ_i = Y_hydro
-        @unpack ρe_int = Y_energy
+        dϑ_l = dY.ϑ_l
+        dθ_i = dY.θ_i
+        dρe_int = dY.ρe_int
+        ϑ_l = Y.ϑ_l
+        θ_i = Y.θ_i
+        ρe_int = Y.ρe_int
 
         cspace = axes(ϑ_l)
         zc = Fields.coordinate_field(cspace)

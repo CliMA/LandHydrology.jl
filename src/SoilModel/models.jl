@@ -3,7 +3,6 @@ export SoilHydrologyModel,
     PrescribedTemperatureModel,
     PrescribedHydrologyModel,
     SoilEnergyModel
-using RecursiveArrayTools: ArrayPartition
 
 abstract type AbstractSoilComponentModel end
 """
@@ -82,14 +81,14 @@ end
 
 
 """
-    SoilModel{em <: AbstractSoilModel, hm <: AbstractSoilModel, bc, A,B}
+    SoilModel{FT, domain, em <: AbstractSoilModel, hm <: AbstractSoilModel, bc, A,B}
 
 The model type for the soil model.
 
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilModel{FT, dm <: AbstractVerticalDomain{FT}, em <: AbstractSoilComponentModel, hm <: AbstractSoilComponentModel, bc, A, B} <: AbstractModel
+Base.@kwdef struct SoilModel{FT, dm <: AbstractVerticalDomain{FT}, em <: AbstractSoilComponentModel, hm <: AbstractSoilComponentModel, bc, A, B} <: AbstractModel
     domain::dm
     "Soil energy model - prescribed or dynamics"
     energy_model::em
@@ -101,7 +100,13 @@ struct SoilModel{FT, dm <: AbstractVerticalDomain{FT}, em <: AbstractSoilCompone
     soil_param_set::A
     "Earth parameter set"
     earth_param_set::B
+    "name"
+    name::Symbol = :soil
+    "variables"
+    variables::Tuple = (:ϑ_l, :θ_i, :ρe_int)
 end
+
 
 include("boundary_conditions.jl")
 include("right_hand_side.jl")
+

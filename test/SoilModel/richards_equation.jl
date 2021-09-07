@@ -69,31 +69,20 @@ using Test
                       bottom = SoilComponentBC(hydrology = VerticalFlux(bottom_water_flux)))
     
     # create model
-    soil_model = SoilModel(domain, PrescribedTemperatureModel(), SoilHydrologyModel(), bc, msp, param_set)
+    soil_model = SoilModel(domain = domain,energy_model = PrescribedTemperatureModel(), hydrology_model = SoilHydrologyModel(),
+                       boundary_conditions = bc, soil_param_set = msp, earth_param_set = param_set)
     
     # initial conditions
-    
-    function energy_ic(z, model)
-        t0 = 0.0
+    function initial_conditions(z, t0, model)
         T = model.energy_model.T_profile(z,t0) # to be consistent with PrescribedT Default. 
         θ_i = 0.0
         θ_l = 0.494
         ρc_ds =model.soil_param_set.ρc_ds
         ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, model.earth_param_set)
         ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, model.earth_param_set)
-        return (;ρe_int = ρe_int,)
+        return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
     end
-    
-    
-    function hydrology_ic(z, model)
-        θ_i = 0.0
-        θ_l  = 0.494
-        return (ϑ_l = θ_l, θ_i = θ_i)
-    end
-    
-    ic = SoilIC(; hydrology = hydrology_ic, energy = energy_ic)
-    
-    Y = create_initial_state(soil_model, ic)
+    Y = set_initial_state(soil_model, initial_conditions, 0.0)
     soil_rhs! = make_rhs(soil_model)
     prob = ODEProblem(soil_rhs!, Y, (t0, tf), [])
     
@@ -110,7 +99,7 @@ using Test
     space_c, _ = make_function_space(domain)
     zc = Fields.coordinate_field(space_c)
     z = parent(zc)
-    ϑ_l = [parent(sol.u[k].x[1].ϑ_l) for k in 1:length(sol.u)]
+    ϑ_l = [parent(sol.u[k].ϑ_l) for k in 1:length(sol.u)]
     function expected(z, z_interface)
         ν = 0.495
         S_s = 1e-3
