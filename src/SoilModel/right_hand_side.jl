@@ -47,6 +47,7 @@ function make_rhs!(
         #update the state Y with prescribed values at the current time
         ϑ_l = hydrology.ϑ_l_profile.(zc, t)
         θ_i = hydrology.θ_i_profile.(zc, t)
+
         θ_l = ϑ_l # eventually have a conversion to liquid water content
         T = energy.T_profile.(zc, t)
         ρc_s =

@@ -10,6 +10,7 @@ using OrdinaryDiffEq:
     SSPRK33
 using LandHydrology
 using LandHydrology.Domains
+using LandHydrology.BoundaryConditions
 using LandHydrology.SoilInterface
 using LandHydrology.SoilInterface.SoilWaterParameterizations
 using LandHydrology.SoilInterface.SoilHeatParameterizations

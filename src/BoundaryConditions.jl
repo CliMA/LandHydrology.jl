@@ -1,4 +1,5 @@
 module BoundaryConditions
+using ClimaCore: Geometry
 export NoBC, VerticalFlux, compute_vertical_flux,SoilDomainBC, SoilComponentBC, AbstractBC
 abstract type AbstractBC end
 

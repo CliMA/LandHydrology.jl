@@ -51,7 +51,7 @@ using Test
         earth_param_set = param_set,
     )
 
-    function initial_conditions(z, t0, model)
+    function initial_conditions(z::Real, t0::Real, model::SoilModel)
         T = model.energy_model.T_profile(z, t0) # to be consistent with PrescribedT Default. 
         θ_i = 0.0
         θ_l = 0.2
