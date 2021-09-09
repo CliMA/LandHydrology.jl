@@ -1,14 +1,30 @@
 """
     Column{FT} <: AbstractVerticalDomain
+
+A struct holding the necessary information 
+to construct a domain, a mesh, a center and face
+space, etc. For use when a finite difference in
+1D is suitable.
+
+# Fields
+$(DocStringExtensions.FIELDS)
 """
 struct Column{FT} <: AbstractVerticalDomain{FT}
+    "Domain interval limits, (zmin, zmax)"
     zlim::Tuple{FT, FT}
+    "Number of elements used to discretize the interval"
     nelements::Int32
+    "Boundary face identifiers"
     x3boundary::Tuple{Symbol, Symbol}
 end
 
 """
     function Column(FT::DataType = Float64; zlim, nelements)
+
+Outer constructor for the `Column` type.
+
+The `x3boundary` field values are used to label the boundary faces 
+at the top and bottom of the domain.
 """
 function Column(FT::DataType = Float64; zlim, nelements)
     @assert zlim[1] < zlim[2]
@@ -35,6 +51,9 @@ end
 
 """
     make_function_space(domain::Column)
+
+Returns the center and face space z values of the 
+column domain.
 """
 function make_function_space(domain::Column{FT}) where {FT}
     column = ClimaCore.Domains.IntervalDomain(

@@ -21,6 +21,8 @@ F = f ẑ
 ``
 
 where f is the value supplied by the user (currently a constant).
+# Fields
+$(DocStringExtensions.FIELDS)
 """
 struct VerticalFlux{f <: AbstractFloat} <: AbstractBC
     "Scalar flux; positive = aligned with ẑ"
@@ -40,24 +42,64 @@ at the bottom of the domain, setting
 """
 struct FreeDrainage <: AbstractBC end
 
+
+"""
+    struct Dirichlet{f} <: AbstractBC
+
+A BC type setting a boundary value of the state `ϑ_l` or
+temperature `T`. This can be a function of time.
+
+Note that we apply boundary conditions to temperature even though
+volumetric internal energy is the prognostic variable.
+
+# Fields
+$(DocStringExtensions.FIELDS)
+"""
 struct Dirichlet{f} <: AbstractBC
     "State Value; (t) -> f(t)"
     state_value::f
 end
 
+"""
+    struct SoilComponentBC{ebc <: AbstractBC, hbc <: AbstractBC}
 
+A container for holding the boundary conditions for the components of the soil model.
+
+The values must be of type AbstractBC; the two components are energy and hydrology.
+Each boundary will have a SoilComponentBC object associated with it.
+
+# Fields
+$(DocStringExtensions.FIELDS)
+"""
 Base.@kwdef struct SoilComponentBC{ebc <: AbstractBC, hbc <: AbstractBC}
+    "BC for the heat equation"
     energy::ebc = NoBC()
+    "BC for ϑ_l"
     hydrology::hbc = NoBC()
 end
 
+
+"""
+    struct SoilDomainBC{D, TBC, BBC}
+
+A container holding the SoilComponentBC for each boundary face.
+
+Each field value should be of type SoilComponentBC. This doesn't do 
+what we want. Ideally the fields would change depending on the domain - 
+e.g. for a Column, they are top and bottom, but for a 3D domain, they might be
+top, bottom, xleft, xright, yleft, yright.
+
+# Fields
+$(DocStringExtensions.FIELDS)
+"""
 struct SoilDomainBC{D, TBC, BBC}
+    "SoilComponentBC for the top of the domain"
     top::TBC
+    "SoilComponentBC for the bottom of the domain"
     bottom::BBC
 end
 
 
-## It is necessary that the fields of DomainBC match the x3 boundary symbols in Column object
 function SoilDomainBC(
     ::Column{FT};
     top::SoilComponentBC = SoilComponentBC(),
@@ -68,7 +110,12 @@ function SoilDomainBC(
 end
 
 
+"""
+    function get_values(Y, face::Symbol)
 
+Returns the values of the (center) state variables Y nearest to the boundary
+face `face`.
+"""
 function get_values(Y, face::Symbol)
     @unpack ϑ_l, θ_i, ρe_int = Y
     if face == :top
@@ -80,6 +127,11 @@ function get_values(Y, face::Symbol)
     end
 end
 
+"""
+    function get_distance(face::Symbol, cs)
+
+Returns the distance from the last center space `cs` node to the nearest face `face`.
+"""
 function get_distance(face::Symbol, cs)
     FT = eltype(cs.mesh)
     if face == :top
@@ -92,7 +144,14 @@ function get_distance(face::Symbol, cs)
 
 end
 
+"""
+    function initialize_boundary_values(Y, face::Symbol, model::SoilModel)
 
+Initializes the 2-element arrays (pairs) of boundary values (center, face), `Y_cf`,
+for each of ϑ_l, θ_i, T.
+
+The initialization sets the boundary face value equal to the center value.
+"""
 function initialize_boundary_values(Y, face::Symbol, model::SoilModel)
     ϑ_l, θ_i, ρe_int = get_values(Y, face)
     θ_l = ϑ_l
@@ -104,7 +163,17 @@ function initialize_boundary_values(Y, face::Symbol, model::SoilModel)
     return (ϑ_l = [ϑ_l, ϑ_l], T = [T, T], θ_i = [θ_i, θ_i])
 end
 
+"""
+    function set_boundary_values!(
+        Y_cf::NamedTuple,
+        bc::Dirichlet,
+        component::SoilEnergyModel,
+        t,
+    )
 
+Updates the face element of the boundary value pair for `T` if a Dirichlet
+boundary condition on `T` is used.
+"""
 function set_boundary_values!(
     Y_cf::NamedTuple,
     bc::Dirichlet,
@@ -113,6 +182,18 @@ function set_boundary_values!(
 )
     Y_cf.T[2] = bc.state_value(t)
 end
+
+"""
+    function set_boundary_values!(
+        Y_cf::NamedTuple,
+        bc::Dirichlet,
+        component::SoilHydrologyModel,
+        t,
+    )
+
+Updates the face element of the boundary value pair for `ϑ_l` if a Dirichlet
+boundary condition on `ϑ_l` is used.
+"""
 function set_boundary_values!(
     Y_cf::NamedTuple,
     bc::Dirichlet,
@@ -121,6 +202,18 @@ function set_boundary_values!(
 )
     Y_cf.ϑ_l[2] = bc.state_value(t)
 end
+
+
+"""
+    function set_boundary_values!(
+        Y_cf::NamedTuple,
+        bc::AbstractBC,
+        component::AbstractSoilComponentModel,
+        t,
+    )
+
+Does nothing in the case of a non-Dirichlet BC.
+"""
 function set_boundary_values!(
     Y_cf::NamedTuple,
     bc::AbstractBC,
@@ -130,21 +223,40 @@ function set_boundary_values!(
     nothing
 end
 
+"""
+     function get_vertical_flux(bc::VerticalFlux, component::AbstractSoilComponentModel, _...)
+
+Return the vertical flux value at the boundary (flux boundary condition).
+"""
 function get_vertical_flux(bc::VerticalFlux, component::SoilEnergyModel, _...)
     return bc.flux
 end
-function get_vertical_flux(
-    bc::VerticalFlux,
-    component::SoilHydrologyModel,
-    _...,
-)
-    return bc.flux
-end
-function get_vertical_flux(bc::NoBC, _...) # PrescribedModels have NoBC() type
+
+"""
+     function get_vertical_flux(bc::NoBC, _...)
+
+Returns nothing.
+
+Prescribed models, or models that do not require boundary conditions, have `NoBC` as
+the boundary type (as opposed to `Dirichlet`, or `VerticalFlux`, e.g.).
+ In this case, do not return any flux.
+"""
+function get_vertical_flux(bc::NoBC, _...)
     nothing
 end
 
+"""
+    function get_vertical_flux(
+        bc::FreeDrainage,
+        component::SoilHydrologyModel,
+        Y_cf::NamedTuple,
+        soil::SoilModel,
+        _...,
+    )
 
+Returns the vertical flux of water volume at the bottom of the domain
+in the case of free drainage.
+"""
 function get_vertical_flux(
     bc::FreeDrainage,
     component::SoilHydrologyModel,
@@ -164,6 +276,19 @@ function get_vertical_flux(
 
 end
 
+"""
+    function get_vertical_flux(
+        bc::Dirichlet,
+        component::SoilHydrologyModel,
+        Y_cf::NamedTuple,
+        soil::SoilModel,
+        dz::AbstractFloat,
+        face::Symbol,
+    )
+
+Computes the volumetric water flux assuming a Dirichlet condtion
+on `ϑ_l` at the boundary.
+"""
 function get_vertical_flux(
     bc::Dirichlet,
     component::SoilHydrologyModel,
@@ -196,6 +321,19 @@ function get_vertical_flux(
 
 end
 
+"""
+    function get_vertical_flux(
+        bc::Dirichlet,
+        component::SoilEnergyModel,
+        Y_cf::NamedTuple,
+        soil::SoilModel,
+        dz::AbstractFloat,
+        face::Symbol,
+    )
+
+Computes the energy flux assuming a Dirichlet condtion
+on `T` at the boundary.
+"""
 function get_vertical_flux(
     bc::Dirichlet,
     component::SoilEnergyModel,
@@ -224,9 +362,19 @@ function get_vertical_flux(
     return flux
 end
 
-# This last function is the only one needed outside of this. Called inside
-# the RHS function to figure out boundary fluxes
+"""
+    function return_fluxes(
+        Y,
+        bc::SoilComponentBC,
+        face::Symbol,
+        model::SoilModel,
+        cs,
+        t,
+    )
 
+Returns the boundary flux at the boundary `face` for all
+components of the soil model. 
+"""
 function return_fluxes(
     Y,
     bc::SoilComponentBC,
