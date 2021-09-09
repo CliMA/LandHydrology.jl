@@ -2,6 +2,7 @@ module Domains
 
 using ClimaCore
 using Printf
+using DocStringExtensions
 
 import ClimaCore: Meshes, Spaces, Topologies
 
