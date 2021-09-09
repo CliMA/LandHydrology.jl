@@ -6,6 +6,9 @@ struct Column{FT} <: AbstractVerticalDomain{FT}
     nelements::Int32
 end
 
+"""
+    function Column(FT::DataType = Float64; zlim, nelements)
+"""
 function Column(FT::DataType = Float64; zlim, nelements)
     @assert zlim[1] < zlim[2]
     return Column{FT}(zlim, nelements)

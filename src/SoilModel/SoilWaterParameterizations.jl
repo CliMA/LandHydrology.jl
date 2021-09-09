@@ -4,14 +4,18 @@ using Printf
 export effective_saturation,
     pressure_head, hydraulic_conductivity, hydrostatic_profile, matric_potential
 
-
+"""
+    function matric_potential(S; vgn = vgn, vgα = vgα, vgm = vgm)
+"""
 function matric_potential(S; vgn = vgn, vgα = vgα, vgm = vgm)
     FT = eltype(S)
     ψ_m = -((S^(-FT(1) / vgm) - FT(1)) * vgα^(-vgn))^(FT(1) / vgn)
     return ψ_m
 end
 
-
+"""
+    function effective_saturation(θ; ν = ν, θr = θr)
+"""
 function effective_saturation(θ; ν = ν, θr = θr)
 
     if θ < θr
@@ -21,6 +25,17 @@ function effective_saturation(θ; ν = ν, θr = θr)
     return (θ - θr) / (ν - θr)
 end
 
+"""
+    function pressure_head(
+        S;
+        vgn = vgn,
+        vgα = vgα,
+        vgm = vgm,
+        ν = ν,
+        θr = θr,
+        S_s = S_s,
+    )
+"""
 function pressure_head(
     S;
     vgn = vgn,
@@ -45,7 +60,9 @@ function pressure_head(
     return ψ
 end
 
-
+"""
+    function hydraulic_conductivity(S; vgm = vgm, ksat = ksat)
+"""
 function hydraulic_conductivity(S; vgm = vgm, ksat = ksat)
     FT = eltype(S)
     if S < FT(1)
@@ -55,6 +72,10 @@ function hydraulic_conductivity(S; vgm = vgm, ksat = ksat)
     end
     return K * ksat
 end
+
+"""
+    function hydrostatic_profile(z, zmin, porosity, n, α, θr)
+"""
 function hydrostatic_profile(z, zmin, porosity, n, α, θr)
     FT = eltype(z)
     m = FT(1 - 1 / n)

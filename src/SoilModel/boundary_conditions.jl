@@ -1,22 +1,50 @@
-export VerticalFlux,SoilDomainBC, SoilComponentBC, NoBC, compute_vertical_flux
+export VerticalFlux, SoilDomainBC, SoilComponentBC, NoBC, compute_vertical_flux
 abstract type AbstractBC end
 
+"""
+    NoBC <: AbstractBC
+
+The BC type to be used when equations do not require boundary conditions,
+e.g. for Prescribed Models.
+"""
 struct NoBC <: AbstractBC end
 
+"""
+    VerticalFlux{f <: AbstractFloat} <: AbstractBC
+
+The BC type to be used for prescribed vertical boundary fluxes. The flux is
+assumed to be of the form
+
+``
+F = f ẑ
+``
+
+where f is the value supplied by the user (currently a constant).
+"""
 struct VerticalFlux{f <: AbstractFloat} <: AbstractBC
     "Scalar flux; positive = aligned with ẑ"
     vertical_flux::f
 end
 
-struct FreeDrainage <: AbstractBC
-end
+"""
+    FreeDrainage <: AbstractBC
+
+A BC type for use with the SoilHydrologyModel (Richards Equation),
+at the bottom of the domain, setting 
+
+``
+    ∇h = 1.
+``
+
+"""
+struct FreeDrainage <: AbstractBC end
 
 Base.@kwdef struct SoilDomainBC{TBC, BBC}
     top::TBC = SoilComponentBC()
     bottom::BBC = SoilComponentBC()
 end
 
-Base.@kwdef struct SoilComponentBC{ebc<: AbstractBC, hbc<:AbstractBC}
+Base.@kwdef struct SoilComponentBC{ebc <: AbstractBC, hbc <: AbstractBC}
     energy::ebc = NoBC()
     hydrology::hbc = NoBC()
 end

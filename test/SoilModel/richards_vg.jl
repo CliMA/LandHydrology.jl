@@ -1,10 +1,4 @@
-import ClimaCore:
-    Fields,
-    Domains,
-    Meshes,
-    Operators,
-    Spaces,
-    Geometry
+import ClimaCore: Fields, Domains, Meshes, Operators, Spaces, Geometry
 using OrdinaryDiffEq:
     ODEProblem,
     solve,
@@ -87,8 +81,26 @@ end
     tf = FT(60 * 60 * 0.8)
     t0 = FT(0)
 
-    msp = SoilParams{FT}(ν, vgn, vgα, vgm, ksat, θr, FT(1e-3),
-                         0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0)
+    msp = SoilParams{FT}(
+        ν,
+        vgn,
+        vgα,
+        vgm,
+        ksat,
+        θr,
+        FT(1e-3),
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+    )
     bottom_bc = FreeDrainage()
     top_bc = θDirichlet(θl_surf)
     domain = Domains.IntervalDomain(z₀, z₁, x3boundary = (:bottom, :top))
