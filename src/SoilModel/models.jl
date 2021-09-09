@@ -91,7 +91,7 @@ Base.@kwdef struct SoilModel{
     dm <: AbstractVerticalDomain{FT},
     em <: AbstractSoilComponentModel,
     hm <: AbstractSoilComponentModel,
-    bc,
+    bc <: SoilDomainBC,
     A,
     B,
 } <: AbstractModel
@@ -101,7 +101,7 @@ Base.@kwdef struct SoilModel{
     "Soil hydrology model - prescribed or dynamic"
     hydrology_model::hm
     "Boundary conditions tuple"
-    boundary_conditions::bc
+    boundary_conditions::bc = SoilDomainBC()
     "Soil parameters"
     soil_param_set::A
     "Earth parameter set"

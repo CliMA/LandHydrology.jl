@@ -40,6 +40,10 @@ function make_rhs!(
         θ_i = Y.θ_i
         ρe_int = Y.ρe_int
 
+        cspace = axes(ϑ_l)
+        zc = Fields.coordinate_field(cspace)
+        FT = eltype(zc)
+        
         #update the state Y with prescribed values at the current time
         ϑ_l = hydrology.ϑ_l_profile.(zc, t)
         θ_i = hydrology.θ_i_profile.(zc, t)
@@ -61,9 +65,6 @@ function make_rhs!(
             )
 
         # RHS is zero
-        space = axes(ϑ_l)
-        zc = Fields.coordinate_field(cspace)
-        FT = eltype(zc)
         dϑ_l = Fields.zeros(FT, cspace)
         dθ_i = Fields.zeros(FT, cspace)
         dρe_int = Fields.zeros(FT, cspace)
