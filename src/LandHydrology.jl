@@ -33,8 +33,30 @@ function Models.make_rhs(model::LandHydrologyModel)
     return rhs!
 end
 
+"""
+    function set_initial_state(model::LandHydrologyModel)
 
-function set_initial_state(model::LandHydrologyModel) end
+Compose initial state out of initial conditions for each subcomponent.
+"""
+function set_initial_state(model::LandHydrologyModel, f, t0::Real)
+    subcomponents = propertynames(model)
+    Ys = []
+    for sc_name in subcomponents
+        sc = getproperty(model, sc_name)
+        f_sc = getproperty(f, sc_name)
+        Y_sc = set_initial_state(sc, f_sc, t0)
+        push!(Ys, Y_sc)
+    end
+    Y = merge(Fields.FieldVector(), Ys)
+    return Y
+    
+end
+
+
+function set_initial_state(model::AbstractModel, f, t0::Real)
+    return Fields.FieldVector()
+end
+
 include(joinpath("SoilModel", "SoilInterface.jl"))
 
 
