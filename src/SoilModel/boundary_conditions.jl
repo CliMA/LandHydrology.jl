@@ -228,7 +228,11 @@ end
 
 Return the vertical flux value at the boundary (flux boundary condition).
 """
-function get_vertical_flux(bc::VerticalFlux, component::AbstractSoilComponentModel, _...)
+function get_vertical_flux(
+    bc::VerticalFlux,
+    component::AbstractSoilComponentModel,
+    _...,
+)
     return bc.flux
 end
 

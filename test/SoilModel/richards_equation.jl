@@ -69,22 +69,25 @@
     function initial_conditions(z, t0, model)
         T = model.energy_model.T_profile(z, t0) # to be consistent with PrescribedT Default. 
         θ_i = 0.0
-        θ_l = 0.2+0.1*z/10.0
+        θ_l = 0.2 + 0.1 * z / 10.0
         ρc_ds = model.soil_param_set.ρc_ds
         ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, model.earth_param_set)
         ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, model.earth_param_set)
         return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
     end
-    Y = set_initial_state(soil_model, initial_conditions, 0.0)
+    Y1 = set_initial_state(soil_model, initial_conditions, 0.0)
     soil_rhs! = make_rhs(soil_model)
+
     land_model = LandHydrologyModel(soil = soil_model)
+    Y2 = set_initial_state(land_model, (soil = initial_conditions,), 0.0)
     land_rhs! = make_rhs(land_model)
-    dY1 = similar(Y)
-    dY2 = similar(Y)
-    a = soil_rhs!(dY1, Y, [], 0.0)
-    b = land_rhs!(dY2, Y, [], 0.0)
-    @test sum(parent(b.soil.ϑ_l) .== parent(a.soil.ϑ_l)) .== length(parent(a.soil.ϑ_l))
-    
+    dY1 = similar(Y1)
+    dY2 = similar(Y2)
+    a = soil_rhs!(dY1, Y1, [], 0.0)
+    b = land_rhs!(dY2, Y2, [], 0.0)
+    @test parent(Y1.soil.ϑ_l) ≈ parent(Y2.soil.ϑ_l)
+    @test parent(b.soil.ϑ_l) ≈ parent(a.soil.ϑ_l)
+
 end
 
 
