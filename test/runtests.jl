@@ -21,5 +21,6 @@ using ArtifactWrappers
 using DelimitedFiles
 
 include("test_domains.jl")
+include("joint_test.jl")
 include("SoilModel/richards_equation.jl")
 include("SoilModel/heat_test_interface.jl")

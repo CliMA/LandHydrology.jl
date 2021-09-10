@@ -1,5 +1,5 @@
 module LandHydrology
-export LandHydrologyModel, set_initial_state, get_initial_state
+export LandHydrologyModel, set_initial_state, get_initial_state, NotIncluded
 using ClimaCore: Fields
 include("Domains/Domains.jl")
 include("Models.jl")
@@ -31,7 +31,7 @@ function Models.make_rhs(model::LandHydrologyModel)
     rhs_functions = []
     for sc_name in subcomponents
         sc = getproperty(model, sc_name)
-        sc_rhs! = Models.make_rhs(sc)
+        sc_rhs! = Models.make_rhs(sc, model)
         push!(rhs_functions, sc_rhs!)
     end
 
@@ -70,6 +70,7 @@ end
 function get_initial_state(model::AbstractModel, f, t0::Real) end # not sure if we need this
 
 include(joinpath("SoilModel", "SoilInterface.jl"))
+include(joinpath("SurfaceFlowModel", "SurfaceFlowInterface.jl"))
 
 
 

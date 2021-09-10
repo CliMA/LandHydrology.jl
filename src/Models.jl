@@ -13,7 +13,7 @@ abstract type AbstractModel end
 """
     function make_rhs(model::AbstractModel)
 """
-function make_rhs(model::AbstractModel)
+function make_rhs(model::AbstractModel, model2::AbstractModel)
     function rhs!(dY, Y, p, t)
         nothing
     end

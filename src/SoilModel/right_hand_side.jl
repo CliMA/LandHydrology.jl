@@ -12,7 +12,7 @@ For the soil model, the rhs function depends on the type of the
 components of the model (the energy and hydrology models), as well as 
 whether additional sources are included.
 """
-function Models.make_rhs(model::SoilModel)
+function Models.make_rhs(model::SoilModel, land::LandHydrologyModel)
     rhs_soil! = make_soil_rhs!(model.energy_model, model.hydrology_model, model)
     function rhs!(dY, Y, p, t)
         rhs_soil!(dY, Y, p, t)
