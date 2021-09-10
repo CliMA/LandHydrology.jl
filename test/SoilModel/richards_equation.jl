@@ -1,3 +1,93 @@
+@testset "Nested soil rhs" begin
+    FT = Float64
+
+    # General soil composition
+    ν = FT(0.495)
+    #Water specific
+    Ksat = FT(0.0443 / 3600 / 100) # m/s
+    S_s = FT(1e-3) #inverse meters
+    vg_n = FT(2.0)
+    vg_α = FT(2.6) # inverse meters
+    vg_m = FT(1) - FT(1) / vg_n
+    θ_r = FT(0)
+
+    ρc_ds = FT(2e6)
+    #collect all params
+    msp = SoilParams{FT}(
+        ν,
+        vg_n,
+        vg_α,
+        vg_m,
+        Ksat,
+        θ_r,
+        S_s,
+        0.0,
+        0.0,
+        0.0,
+        ρc_ds,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+    )
+
+
+    #Simulation and domain info
+    t0 = FT(0)
+    tf = FT(60 * 60 * 24 * 36)
+    dt = FT(100)
+    n = 50
+
+    zmax = FT(0)
+    zmin = FT(-10)
+    domain = Column(FT, zlim = (zmin, zmax), nelements = n)
+
+    #Boundary conditions
+    top_water_flux = FT(0)
+    bottom_water_flux = FT(0)
+    bc = SoilDomainBC(
+        domain;
+        top = SoilComponentBC(hydrology = VerticalFlux(top_water_flux)),
+        bottom = SoilComponentBC(hydrology = VerticalFlux(bottom_water_flux)),
+    )
+
+    # create model
+    soil_model = SoilModel(
+        domain = domain,
+        energy_model = PrescribedTemperatureModel(),
+        hydrology_model = SoilHydrologyModel(),
+        boundary_conditions = bc,
+        soil_param_set = msp,
+        earth_param_set = param_set,
+    )
+
+
+    # initial conditions
+    function initial_conditions(z, t0, model)
+        T = model.energy_model.T_profile(z, t0) # to be consistent with PrescribedT Default. 
+        θ_i = 0.0
+        θ_l = 0.2+0.1*z/10.0
+        ρc_ds = model.soil_param_set.ρc_ds
+        ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, model.earth_param_set)
+        ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, model.earth_param_set)
+        return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
+    end
+    Y = set_initial_state(soil_model, initial_conditions, 0.0)
+    soil_rhs! = make_rhs(soil_model)
+    land_model = LandHydrologyModel(soil = soil_model)
+    land_rhs! = make_rhs(land_model)
+    dY1 = similar(Y)
+    dY2 = similar(Y)
+    a = soil_rhs!(dY1, Y, [], 0.0)
+    b = land_rhs!(dY2, Y, [], 0.0)
+    @test sum(parent(b.soil.ϑ_l) .== parent(a.soil.ϑ_l)) .== length(parent(a.soil.ϑ_l))
+    
+end
+
+
 @testset "Variably saturated equilibrium" begin
     FT = Float64
 
@@ -64,6 +154,7 @@
         earth_param_set = param_set,
     )
 
+
     # initial conditions
     function initial_conditions(z, t0, model)
         T = model.energy_model.T_profile(z, t0) # to be consistent with PrescribedT Default. 
@@ -91,7 +182,7 @@
     space_c, _ = make_function_space(domain)
     zc = Fields.coordinate_field(space_c)
     z = parent(zc)
-    ϑ_l = [parent(sol.u[k].ϑ_l) for k in 1:length(sol.u)]
+    ϑ_l = [parent(sol.u[k].soil.ϑ_l) for k in 1:length(sol.u)]
     function expected(z, z_interface)
         ν = 0.495
         S_s = 1e-3
@@ -224,7 +315,7 @@ end
     space_c, _ = make_function_space(domain)
     zc = Fields.coordinate_field(space_c)
     z = parent(zc)
-    ϑ_l = parent(sol.u[193].ϑ_l)
+    ϑ_l = parent(sol.u[193].soil.ϑ_l)
 
 
     bonan_sand_dataset = ArtifactWrapper(

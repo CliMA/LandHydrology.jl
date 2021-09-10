@@ -10,6 +10,7 @@ using OrdinaryDiffEq:
     SSPRK33,
     SSPRK73
 using LandHydrology
+using LandHydrology.Models: make_rhs
 using LandHydrology.Domains: Column, make_function_space
 using LandHydrology.SoilInterface
 using LandHydrology.SoilInterface.SoilWaterParameterizations

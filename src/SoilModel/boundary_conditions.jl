@@ -228,7 +228,7 @@ end
 
 Return the vertical flux value at the boundary (flux boundary condition).
 """
-function get_vertical_flux(bc::VerticalFlux, component::SoilEnergyModel, _...)
+function get_vertical_flux(bc::VerticalFlux, component::AbstractSoilComponentModel, _...)
     return bc.flux
 end
 
@@ -386,7 +386,7 @@ function return_fluxes(
     energy = model.energy_model
     hydrology = model.hydrology_model
 
-    Y_cf = initialize_boundary_values(Y, face, model)
+    Y_cf = initialize_boundary_values(Y.soil, face, model)
     set_boundary_values!(Y_cf, bc.energy, energy, t)
     set_boundary_values!(Y_cf, bc.hydrology, hydrology, t)
 

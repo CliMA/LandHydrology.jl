@@ -102,9 +102,9 @@
         exp.(-sqrt(ω / 2) * (1 + im) * (1 .- z))
     denom = exp(sqrt(ω / 2) * (1 + im)) - exp.(-sqrt(ω / 2) * (1 + im))
     analytic_soln = real(num .* A * exp(im * ω * tf) / denom)
-    ρe_intf = parent(sol.u[end].ρe_int)[:]
-    θ_lf = parent(sol.u[end].ϑ_l)[:]
-    θ_if = parent(sol.u[end].θ_i)[:]
+    ρe_intf = parent(sol.u[end].soil.ρe_int)[:]
+    θ_lf = parent(sol.u[end].soil.ϑ_l)[:]
+    θ_if = parent(sol.u[end].soil.θ_i)[:]
     ρc_s = volumetric_heat_capacity.(θ_lf, θ_if, ρc_ds, Ref(param_set))
     Tfinal = temperature_from_ρe_int.(ρe_intf, θ_if, ρc_s, Ref(param_set))
     MSE = mean((analytic_soln .- Tfinal) .^ 2.0)

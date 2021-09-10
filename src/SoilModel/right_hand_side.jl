@@ -1,7 +1,5 @@
-export make_rhs
-
 """
-    make_rhs(model::SoilModel)
+    Models.make_rhs(model::SoilModel)
 
 A function which takes a model::AbstractModel as argument, 
 and returns function which computes the rhs
@@ -14,8 +12,8 @@ For the soil model, the rhs function depends on the type of the
 components of the model (the energy and hydrology models), as well as 
 whether additional sources are included.
 """
-function make_rhs(model::SoilModel)
-    rhs_soil! = make_rhs!(model.energy_model, model.hydrology_model, model)
+function Models.make_rhs(model::SoilModel)
+    rhs_soil! = make_soil_rhs!(model.energy_model, model.hydrology_model, model)
     function rhs!(dY, Y, p, t)
         rhs_soil!(dY, Y, p, t)
         return dY
@@ -24,21 +22,21 @@ function make_rhs(model::SoilModel)
 end
 
 """
-    make_rhs!(energy::PrescribedTemperatureModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
+    make_soil_rhs!(energy::PrescribedTemperatureModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
 
 """
-function make_rhs!(
+function make_soil_rhs!(
     energy::PrescribedTemperatureModel,
     hydrology::PrescribedHydrologyModel,
     model::SoilModel,
 )
     function rhs!(dY, Y, _, t)
-        dϑ_l = dY.ϑ_l
-        dθ_i = dY.θ_i
-        dρe_int = dY.ρe_int
-        ϑ_l = Y.ϑ_l
-        θ_i = Y.θ_i
-        ρe_int = Y.ρe_int
+        dϑ_l = dY.soil.ϑ_l
+        dθ_i = dY.soil.θ_i
+        dρe_int = dY.soil.ρe_int
+        ϑ_l = Y.soil.ϑ_l
+        θ_i = Y.soil.θ_i
+        ρe_int = Y.soil.ρe_int
 
         #update the state Y with prescribed values at the current time
         ϑ_l = hydrology.ϑ_l_profile.(zc, t)
@@ -73,21 +71,21 @@ function make_rhs!(
 end
 
 """
-    make_rhs!(energy::PrescribedTemperatureModel, hydrology::SoilHydrologyModel, model::SoilModel)
+    make_soil_rhs!(energy::PrescribedTemperatureModel, hydrology::SoilHydrologyModel, model::SoilModel)
 
 """
-function make_rhs!(
+function make_soil_rhs!(
     energy::PrescribedTemperatureModel,
     hydrology::SoilHydrologyModel,
     model::SoilModel,
 )
     function rhs!(dY, Y, _, t)
-        dϑ_l = dY.ϑ_l
-        dθ_i = dY.θ_i
-        dρe_int = dY.ρe_int
-        ϑ_l = Y.ϑ_l
-        θ_i = Y.θ_i
-        ρe_int = Y.ρe_int
+        dϑ_l = dY.soil.ϑ_l
+        dθ_i = dY.soil.θ_i
+        dρe_int = dY.soil.ρe_int
+        ϑ_l = Y.soil.ϑ_l
+        θ_i = Y.soil.θ_i
+        ρe_int = Y.soil.ρe_int
 
         cspace = axes(ϑ_l)
         zc = Fields.coordinate_field(cspace)
@@ -163,21 +161,21 @@ function make_rhs!(
 end
 
 """
-    make_rhs!(energy::SoilEnergyModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
+    make_soil_rhs!(energy::SoilEnergyModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
 
 """
-function make_rhs!(
+function make_soil_rhs!(
     energy::SoilEnergyModel,
     hydrology::PrescribedHydrologyModel,
     model::SoilModel,
 )
     function rhs!(dY, Y, _, t)
-        dϑ_l = dY.ϑ_l
-        dθ_i = dY.θ_i
-        dρe_int = dY.ρe_int
-        ϑ_l = Y.ϑ_l
-        θ_i = Y.θ_i
-        ρe_int = Y.ρe_int
+        dϑ_l = dY.soil.ϑ_l
+        dθ_i = dY.soil.θ_i
+        dρe_int = dY.soil.ρe_int
+        ϑ_l = Y.soil.ϑ_l
+        θ_i = Y.soil.θ_i
+        ρe_int = Y.soil.ρe_int
 
         cspace = axes(ϑ_l)
         zc = Fields.coordinate_field(cspace)
@@ -237,21 +235,21 @@ function make_rhs!(
 end
 
 """
-    make_rhs!(energy::SoilEnergyModel, hydrology::SoilHydrologyModel, model::SoilModel)
+    make_soil_rhs!(energy::SoilEnergyModel, hydrology::SoilHydrologyModel, model::SoilModel)
 
 """
-function make_rhs!(
+function make_soil_rhs!(
     energy::SoilEnergyModel,
     hydrology::SoilHydrologyModel,
     model::SoilModel,
 )
     function rhs!(dY, Y, _, t)
-        dϑ_l = dY.ϑ_l
-        dθ_i = dY.θ_i
-        dρe_int = dY.ρe_int
-        ϑ_l = Y.ϑ_l
-        θ_i = Y.θ_i
-        ρe_int = Y.ρe_int
+        dϑ_l = dY.soil.ϑ_l
+        dθ_i = dY.soil.θ_i
+        dρe_int = dY.soil.ρe_int
+        ϑ_l = Y.soil.ϑ_l
+        θ_i = Y.soil.θ_i
+        ρe_int = Y.soil.ρe_int
 
         cspace = axes(ϑ_l)
         zc = Fields.coordinate_field(cspace)
