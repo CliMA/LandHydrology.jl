@@ -3,8 +3,12 @@ import ClimaCore: Fields, Operators, Geometry
 using DocStringExtensions
 using UnPack
 
-using LandHydrology.Domains: AbstractVerticalDomain, make_function_space
+using LandHydrology.Domains: AbstractVerticalDomain, make_function_space, Column
 using LandHydrology.Models: AbstractModel
+using LandHydrology: LandHydrologyModel
+import LandHydrology:
+    Models, LandHydrology, set_initial_state, get_initial_state
+
 include("SoilWaterParameterizations.jl")
 using .SoilWaterParameterizations
 include("SoilHeatParameterizations.jl")

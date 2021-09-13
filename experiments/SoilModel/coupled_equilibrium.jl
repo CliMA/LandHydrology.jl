@@ -87,6 +87,7 @@ top_heat_flux = FT(0)
 bottom_water_flux = FT(0)
 bottom_heat_flux = FT(0)
 bc = SoilDomainBC(
+    domain;
     top = SoilComponentBC(
         hydrology = VerticalFlux(top_water_flux),
         energy = VerticalFlux(top_heat_flux),
@@ -145,9 +146,9 @@ sol = solve(
 space_c, _ = make_function_space(domain)
 zc = Fields.coordinate_field(space_c)
 z = parent(zc)
-ϑ_l = [parent(sol.u[k].ϑ_l) for k in 1:length(sol.u)]
-θ_i = [parent(sol.u[k].θ_i) for k in 1:length(sol.u)]
-ρe_int = [parent(sol.u[k].ρe_int) for k in 1:length(sol.u)]
+ϑ_l = [parent(sol.u[k].soil.ϑ_l) for k in 1:length(sol.u)]
+θ_i = [parent(sol.u[k].soil.θ_i) for k in 1:length(sol.u)]
+ρe_int = [parent(sol.u[k].soil.ρe_int) for k in 1:length(sol.u)]
 #function expected(z, model)
 #    @unpack ν, vgα, vgm, vgn  =   model.soil_param_set
 #    C = -0.985118

@@ -1,4 +1,5 @@
-export VerticalFlux, SoilDomainBC, SoilComponentBC, NoBC, compute_vertical_flux
+export VerticalFlux,
+    Dirichlet, FreeDrainage, SoilDomainBC, SoilComponentBC, NoBC
 abstract type AbstractBC end
 
 """
@@ -20,10 +21,12 @@ F = f ẑ
 ``
 
 where f is the value supplied by the user (currently a constant).
+# Fields
+$(DocStringExtensions.FIELDS)
 """
 struct VerticalFlux{f <: AbstractFloat} <: AbstractBC
     "Scalar flux; positive = aligned with ẑ"
-    vertical_flux::f
+    flux::f
 end
 
 """
@@ -39,31 +42,360 @@ at the bottom of the domain, setting
 """
 struct FreeDrainage <: AbstractBC end
 
-Base.@kwdef struct SoilDomainBC{TBC, BBC}
-    top::TBC = SoilComponentBC()
-    bottom::BBC = SoilComponentBC()
+
+"""
+    struct Dirichlet{f} <: AbstractBC
+
+A BC type setting a boundary value of the state `ϑ_l` or
+temperature `T`. This can be a function of time.
+
+Note that we apply boundary conditions to temperature even though
+volumetric internal energy is the prognostic variable.
+
+# Fields
+$(DocStringExtensions.FIELDS)
+"""
+struct Dirichlet{f} <: AbstractBC
+    "State Value; (t) -> f(t)"
+    state_value::f
 end
 
+"""
+    struct SoilComponentBC{ebc <: AbstractBC, hbc <: AbstractBC}
+
+A container for holding the boundary conditions for the components of the soil model.
+
+The values must be of type AbstractBC; the two components are energy and hydrology.
+Each boundary will have a SoilComponentBC object associated with it.
+
+# Fields
+$(DocStringExtensions.FIELDS)
+"""
 Base.@kwdef struct SoilComponentBC{ebc <: AbstractBC, hbc <: AbstractBC}
+    "BC for the heat equation"
     energy::ebc = NoBC()
+    "BC for ϑ_l"
     hydrology::hbc = NoBC()
 end
 
 
-function compute_vertical_flux(bc::VerticalFlux, _...)
-    return Geometry.Cartesian3Vector(bc.vertical_flux)
-end
-#unclear if we need this
-function compute_vertical_flux(bc::NoBC, _...)
-    return nothing
+"""
+    struct SoilDomainBC{D, TBC, BBC}
+
+A container holding the SoilComponentBC for each boundary face.
+
+Each field value should be of type SoilComponentBC. This doesn't do 
+what we want. Ideally the fields would change depending on the domain - 
+e.g. for a Column, they are top and bottom, but for a 3D domain, they might be
+top, bottom, xleft, xright, yleft, yright.
+
+# Fields
+$(DocStringExtensions.FIELDS)
+"""
+struct SoilDomainBC{D, TBC, BBC}
+    "SoilComponentBC for the top of the domain"
+    top::TBC
+    "SoilComponentBC for the bottom of the domain"
+    bottom::BBC
 end
 
-function compute_vertical_flux(bc::FreeDrainage, Y)# this only make sense to use at the bottom, but the user should know this. 
-    (Y_hydro, Y_energy) = Y.x
-    @unpack ϑ_l, θ_i = Y_hydro
+
+function SoilDomainBC(
+    ::Column{FT};
+    top::SoilComponentBC = SoilComponentBC(),
+    bottom::SoilComponentBC = SoilComponentBC(),
+) where {FT}
+    args = (top, bottom)
+    return SoilDomainBC{Column{FT}, typeof.(args)...}(args...)
+end
+
+
+"""
+    function get_values(Y, face::Symbol)
+
+Returns the values of the (center) state variables Y nearest to the boundary
+face `face`.
+"""
+function get_values(Y, face::Symbol)
+    @unpack ϑ_l, θ_i, ρe_int = Y
+    if face == :top
+        return last(parent(ϑ_l)), last(parent(θ_i)), last(parent(ρe_int))
+    elseif face == :bottom
+        return first(parent(ϑ_l)), first(parent(θ_i)), first(parent(ρe_int))
+    else
+        throw(ArgumentError("Expected :top or :bottom"))
+    end
+end
+
+"""
+    function get_distance(face::Symbol, cs)
+
+Returns the distance from the last center space `cs` node to the nearest face `face`.
+"""
+function get_distance(face::Symbol, cs)
+    FT = eltype(cs.mesh)
+    if face == :top
+        return last(cs.face_local_geometry.WJ)
+    elseif face == :bottom
+        return cs.face_local_geometry.WJ[1]
+    else
+        throw(ArgumentError("Expected :top or :bottom"))
+    end
+
+end
+
+"""
+    function initialize_boundary_values(Y, face::Symbol, model::SoilModel)
+
+Initializes the 2-element arrays (pairs) of boundary values (center, face), `Y_cf`,
+for each of ϑ_l, θ_i, T.
+
+The initialization sets the boundary face value equal to the center value.
+"""
+function initialize_boundary_values(Y, face::Symbol, model::SoilModel)
+    ϑ_l, θ_i, ρe_int = get_values(Y, face)
     θ_l = ϑ_l
+    @unpack ρc_ds = model.soil_param_set
+    param_set = model.earth_param_set
+    ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, param_set)
+    T = temperature_from_ρe_int(ρe_int, θ_i, ρc_s, param_set)
+    # center, face
+    return (ϑ_l = [ϑ_l, ϑ_l], T = [T, T], θ_i = [θ_i, θ_i])
+end
+
+"""
+    function set_boundary_values!(
+        Y_cf::NamedTuple,
+        bc::Dirichlet,
+        component::SoilEnergyModel,
+        t,
+    )
+
+Updates the face element of the boundary value pair for `T` if a Dirichlet
+boundary condition on `T` is used.
+"""
+function set_boundary_values!(
+    Y_cf::NamedTuple,
+    bc::Dirichlet,
+    component::SoilEnergyModel,
+    t,
+)
+    Y_cf.T[2] = bc.state_value(t)
+end
+
+"""
+    function set_boundary_values!(
+        Y_cf::NamedTuple,
+        bc::Dirichlet,
+        component::SoilHydrologyModel,
+        t,
+    )
+
+Updates the face element of the boundary value pair for `ϑ_l` if a Dirichlet
+boundary condition on `ϑ_l` is used.
+"""
+function set_boundary_values!(
+    Y_cf::NamedTuple,
+    bc::Dirichlet,
+    component::SoilHydrologyModel,
+    t,
+)
+    Y_cf.ϑ_l[2] = bc.state_value(t)
+end
+
+
+"""
+    function set_boundary_values!(
+        Y_cf::NamedTuple,
+        bc::AbstractBC,
+        component::AbstractSoilComponentModel,
+        t,
+    )
+
+Does nothing in the case of a non-Dirichlet BC.
+"""
+function set_boundary_values!(
+    Y_cf::NamedTuple,
+    bc::AbstractBC,
+    component::AbstractSoilComponentModel,
+    t,
+)
+    nothing
+end
+
+"""
+     function get_vertical_flux(bc::VerticalFlux, component::AbstractSoilComponentModel, _...)
+
+Return the vertical flux value at the boundary (flux boundary condition).
+"""
+function get_vertical_flux(
+    bc::VerticalFlux,
+    component::AbstractSoilComponentModel,
+    _...,
+)
+    return bc.flux
+end
+
+"""
+     function get_vertical_flux(bc::NoBC, _...)
+
+Returns nothing.
+
+Prescribed models, or models that do not require boundary conditions, have `NoBC` as
+the boundary type (as opposed to `Dirichlet`, or `VerticalFlux`, e.g.).
+ In this case, do not return any flux.
+"""
+function get_vertical_flux(bc::NoBC, _...)
+    nothing
+end
+
+"""
+    function get_vertical_flux(
+        bc::FreeDrainage,
+        component::SoilHydrologyModel,
+        Y_cf::NamedTuple,
+        soil::SoilModel,
+        _...,
+    )
+
+Returns the vertical flux of water volume at the bottom of the domain
+in the case of free drainage.
+"""
+function get_vertical_flux(
+    bc::FreeDrainage,
+    component::SoilHydrologyModel,
+    Y_cf::NamedTuple,
+    soil::SoilModel,
+    _...,
+)
+    @unpack ϑ_l, θ_i, T = Y_cf # [center, face]
+    θ_l = ϑ_l[1]
+    θ_i = θ_i[1]
+    T = T[1]
+    @unpack ν, vgm, ksat, θr = soil.soil_param_set
+    S = effective_saturation(θ_l; ν = ν, θr = θr)
+    K = hydraulic_conductivity(S; vgm = vgm, ksat = ksat)
+    flux = -K # = -K∇h when ∇h = 1. ∇h = 1 -> θ_c = θ_f at the bottom, so use K(θ_c).
+    return flux
+
+end
+
+"""
+    function get_vertical_flux(
+        bc::Dirichlet,
+        component::SoilHydrologyModel,
+        Y_cf::NamedTuple,
+        soil::SoilModel,
+        dz::AbstractFloat,
+        face::Symbol,
+    )
+
+Computes the volumetric water flux assuming a Dirichlet condtion
+on `ϑ_l` at the boundary.
+"""
+function get_vertical_flux(
+    bc::Dirichlet,
+    component::SoilHydrologyModel,
+    Y_cf::NamedTuple,
+    soil::SoilModel,
+    dz::AbstractFloat,
+    face::Symbol,
+)
+    @unpack ϑ_l, θ_i, T = Y_cf # [center, face]
+    θ_l = ϑ_l
+
+    @unpack ν, vgα, vgn, vgm, ksat, θr, S_s = soil.soil_param_set
     S = effective_saturation.(θ_l; ν = ν, θr = θr)
     K = hydraulic_conductivity.(S; vgm = vgm, ksat = ksat)
-    flux = -parent(K)[1] # = -K∇h when ∇h = 1. ∇h = 1 -> θ_c = θ_f at the bottom, so use K(θ_c).
-    return Geometry.Cartesian3Vector(flux)
+    ψ =
+        pressure_head.(
+            S;
+            vgn = vgn,
+            vgα = vgα,
+            vgm = vgm,
+            ν = ν,
+            θr = θr,
+            S_s = S_s,
+        )
+    flux = -K[2] * (ψ[2] - ψ[1] + dz) / dz
+    if face == :bottom # at the bottom
+        flux *= -1
+    end
+    return flux
+
+end
+
+"""
+    function get_vertical_flux(
+        bc::Dirichlet,
+        component::SoilEnergyModel,
+        Y_cf::NamedTuple,
+        soil::SoilModel,
+        dz::AbstractFloat,
+        face::Symbol,
+    )
+
+Computes the energy flux assuming a Dirichlet condtion
+on `T` at the boundary.
+"""
+function get_vertical_flux(
+    bc::Dirichlet,
+    component::SoilEnergyModel,
+    Y_cf::NamedTuple,
+    soil::SoilModel,
+    dz::AbstractFloat,
+    face::Symbol,
+)
+    @unpack ϑ_l, θ_i, T = Y_cf # [center, face]
+    @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = soil.soil_param_set
+    param_set = soil.earth_param_set
+    κ_dry = k_dry(param_set, soil.soil_param_set)
+
+    θ_l = ϑ_l
+    S_r = relative_saturation.(θ_l, θ_i, ν)
+    kersten = kersten_number.(θ_i, S_r, Ref(soil.soil_param_set))
+    κ_sat =
+        saturated_thermal_conductivity.(θ_l, θ_i, κ_sat_unfrozen, κ_sat_frozen)
+    κ = thermal_conductivity.(κ_dry, kersten, κ_sat) # at face
+
+    flux = -κ[2] * (T[2] - T[1]) / dz
+    if face == :bottom # at the bottom
+        flux *= -1
+    end
+
+    return flux
+end
+
+"""
+    function return_fluxes(
+        Y,
+        bc::SoilComponentBC,
+        face::Symbol,
+        model::SoilModel,
+        cs,
+        t,
+    )
+
+Returns the boundary flux at the boundary `face` for all
+components of the soil model. 
+"""
+function return_fluxes(
+    Y,
+    bc::SoilComponentBC,
+    face::Symbol,
+    model::SoilModel,
+    cs,
+    t,
+)
+    energy = model.energy_model
+    hydrology = model.hydrology_model
+
+    Y_cf = initialize_boundary_values(Y.soil, face, model)
+    set_boundary_values!(Y_cf, bc.energy, energy, t)
+    set_boundary_values!(Y_cf, bc.hydrology, hydrology, t)
+
+    dz = get_distance(face, cs)
+    fρe_int = get_vertical_flux(bc.energy, energy, Y_cf, model, dz, face)
+    fϑ_l = get_vertical_flux(bc.hydrology, hydrology, Y_cf, model, dz, face)
+    return (fρe_int = fρe_int, fϑ_l = fϑ_l)
 end

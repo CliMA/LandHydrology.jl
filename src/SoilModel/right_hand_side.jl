@@ -1,7 +1,5 @@
-export make_rhs
-
 """
-    make_rhs(model::SoilModel)
+    Models.make_rhs(model::SoilModel)
 
 A function which takes a model::AbstractModel as argument, 
 and returns function which computes the rhs
@@ -14,8 +12,8 @@ For the soil model, the rhs function depends on the type of the
 components of the model (the energy and hydrology models), as well as 
 whether additional sources are included.
 """
-function make_rhs(model::SoilModel)
-    rhs_soil! = make_rhs!(model.energy_model, model.hydrology_model, model)
+function Models.make_rhs(model::SoilModel)
+    rhs_soil! = make_soil_rhs!(model.energy_model, model.hydrology_model, model)
     function rhs!(dY, Y, p, t)
         rhs_soil!(dY, Y, p, t)
         return dY
@@ -24,21 +22,21 @@ function make_rhs(model::SoilModel)
 end
 
 """
-    make_rhs!(energy::PrescribedTemperatureModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
+    make_soil_rhs!(energy::PrescribedTemperatureModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
 
 """
-function make_rhs!(
+function make_soil_rhs!(
     energy::PrescribedTemperatureModel,
     hydrology::PrescribedHydrologyModel,
     model::SoilModel,
 )
     function rhs!(dY, Y, _, t)
-        dϑ_l = dY.ϑ_l
-        dθ_i = dY.θ_i
-        dρe_int = dY.ρe_int
-        ϑ_l = Y.ϑ_l
-        θ_i = Y.θ_i
-        ρe_int = Y.ρe_int
+        dϑ_l = dY.soil.ϑ_l
+        dθ_i = dY.soil.θ_i
+        dρe_int = dY.soil.ρe_int
+        ϑ_l = Y.soil.ϑ_l
+        θ_i = Y.soil.θ_i
+        ρe_int = Y.soil.ρe_int
 
         #update the state Y with prescribed values at the current time
         ϑ_l = hydrology.ϑ_l_profile.(zc, t)
@@ -73,31 +71,36 @@ function make_rhs!(
 end
 
 """
-    make_rhs!(energy::PrescribedTemperatureModel, hydrology::SoilHydrologyModel, model::SoilModel)
+    make_soil_rhs!(energy::PrescribedTemperatureModel, hydrology::SoilHydrologyModel, model::SoilModel)
 
 """
-function make_rhs!(
+function make_soil_rhs!(
     energy::PrescribedTemperatureModel,
     hydrology::SoilHydrologyModel,
     model::SoilModel,
 )
     function rhs!(dY, Y, _, t)
-        dϑ_l = dY.ϑ_l
-        dθ_i = dY.θ_i
-        dρe_int = dY.ρe_int
-        ϑ_l = Y.ϑ_l
-        θ_i = Y.θ_i
-        ρe_int = Y.ρe_int
+        dϑ_l = dY.soil.ϑ_l
+        dθ_i = dY.soil.θ_i
+        dρe_int = dY.soil.ρe_int
+        ϑ_l = Y.soil.ϑ_l
+        θ_i = Y.soil.θ_i
+        ρe_int = Y.soil.ρe_int
 
         cspace = axes(ϑ_l)
         zc = Fields.coordinate_field(cspace)
         FT = eltype(zc)
 
         # boundary conditions and parameters
-        bc = model.boundary_conditions
-        top_water_flux, btm_water_flux =
-            compute_vertical_flux(bc.top.hydrology),
-            compute_vertical_flux(bc.bottom.hydrology)
+        faces = model.domain.x3boundary
+        bcs = getproperty.(Ref(model.boundary_conditions), faces)
+        fluxes = (;
+            zip(
+                faces,
+                return_fluxes.(Ref(Y), bcs, faces, Ref(model), Ref(cspace), t),
+            )...,
+        )
+
         sp = model.soil_param_set
         param_set = model.earth_param_set
         @unpack ν, vgn, vgα, vgm, ksat, θr, S_s, ρc_ds = sp
@@ -140,8 +143,12 @@ function make_rhs!(
         interpc2f = Operators.InterpolateC2F()
         gradc2f_water = Operators.GradientC2F()
         divf2c_water = Operators.DivergenceF2C(
-            top = Operators.SetValue(top_water_flux),
-            bottom = Operators.SetValue(btm_water_flux),
+            top = Operators.SetValue(
+                Geometry.Cartesian3Vector(fluxes.top.fϑ_l),
+            ),
+            bottom = Operators.SetValue(
+                Geometry.Cartesian3Vector(fluxes.bottom.fϑ_l),
+            ),
         )
 
         @. dϑ_l = -(divf2c_water(-interpc2f(K) * gradc2f_water(h))) #Richards equation
@@ -154,30 +161,36 @@ function make_rhs!(
 end
 
 """
-    make_rhs!(energy::SoilEnergyModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
+    make_soil_rhs!(energy::SoilEnergyModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
 
 """
-function make_rhs!(
+function make_soil_rhs!(
     energy::SoilEnergyModel,
     hydrology::PrescribedHydrologyModel,
     model::SoilModel,
 )
     function rhs!(dY, Y, _, t)
-        dϑ_l = dY.ϑ_l
-        dθ_i = dY.θ_i
-        dρe_int = dY.ρe_int
-        ϑ_l = Y.ϑ_l
-        θ_i = Y.θ_i
-        ρe_int = Y.ρe_int
+        dϑ_l = dY.soil.ϑ_l
+        dθ_i = dY.soil.θ_i
+        dρe_int = dY.soil.ρe_int
+        ϑ_l = Y.soil.ϑ_l
+        θ_i = Y.soil.θ_i
+        ρe_int = Y.soil.ρe_int
 
         cspace = axes(ϑ_l)
         zc = Fields.coordinate_field(cspace)
         FT = eltype(zc)
 
         # boundary conditions and parameters
-        bc = model.boundary_conditions
-        top_heat_flux, btm_heat_flux = compute_vertical_flux(bc.top.energy),
-        compute_vertical_flux(bc.bottom.energy)
+        faces = model.domain.x3boundary
+        bcs = getproperty.(Ref(model.boundary_conditions), faces)
+        fluxes = (;
+            zip(
+                faces,
+                return_fluxes.(Ref(Y), bcs, faces, Ref(model), Ref(cspace), t),
+            )...,
+        )
+
         sp = model.soil_param_set
         param_set = model.earth_param_set
         @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
@@ -185,10 +198,11 @@ function make_rhs!(
         # update water content based on prescribed profiles, set RHS to zero.
         ϑ_l = hydrology.ϑ_l_profile.(zc, t)
         θ_i = hydrology.θ_i_profile.(zc, t)
+        dϑ_l = Fields.zeros(FT, cspace)
         dθ_i = Fields.zeros(FT, cspace)
-        dρe_int = Fields.zeros(FT, space)
 
         # Compute center values of everything
+        θ_l = ϑ_l
         ρc_s = volumetric_heat_capacity.(θ_l, θ_i, ρc_ds, Ref(param_set))
         T = temperature_from_ρe_int.(ρe_int, θ_i, ρc_s, Ref(param_set))
         κ_dry = k_dry(param_set, sp)
@@ -207,8 +221,12 @@ function make_rhs!(
         interpc2f = Operators.InterpolateC2F()
         gradc2f_heat = Operators.GradientC2F()
         divf2c_heat = Operators.DivergenceF2C(
-            top = Operators.SetValue(top_heat_flux),
-            bottom = Operators.SetValue(btm_heat_flux),
+            top = Operators.SetValue(
+                Geometry.Cartesian3Vector(fluxes.top.fρe_int),
+            ),
+            bottom = Operators.SetValue(
+                Geometry.Cartesian3Vector(fluxes.bottom.fρe_int),
+            ),
         )
         @. dρe_int = -divf2c_heat(-interpc2f(κ) * gradc2f_heat(T))
         return dY
@@ -217,33 +235,35 @@ function make_rhs!(
 end
 
 """
-    make_rhs!(energy::SoilEnergyModel, hydrology::SoilHydrologyModel, model::SoilModel)
+    make_soil_rhs!(energy::SoilEnergyModel, hydrology::SoilHydrologyModel, model::SoilModel)
 
 """
-function make_rhs!(
+function make_soil_rhs!(
     energy::SoilEnergyModel,
     hydrology::SoilHydrologyModel,
     model::SoilModel,
 )
     function rhs!(dY, Y, _, t)
-        dϑ_l = dY.ϑ_l
-        dθ_i = dY.θ_i
-        dρe_int = dY.ρe_int
-        ϑ_l = Y.ϑ_l
-        θ_i = Y.θ_i
-        ρe_int = Y.ρe_int
+        dϑ_l = dY.soil.ϑ_l
+        dθ_i = dY.soil.θ_i
+        dρe_int = dY.soil.ρe_int
+        ϑ_l = Y.soil.ϑ_l
+        θ_i = Y.soil.θ_i
+        ρe_int = Y.soil.ρe_int
 
         cspace = axes(ϑ_l)
         zc = Fields.coordinate_field(cspace)
         FT = eltype(zc)
 
         # boundary conditions and parameters
-        bc = model.boundary_conditions
-        top_water_flux, btm_water_flux =
-            compute_vertical_flux(bc.top.hydrology),
-            compute_vertical_flux(bc.bottom.hydrology)
-        top_heat_flux, btm_heat_flux = compute_vertical_flux(bc.top.energy),
-        compute_vertical_flux(bc.bottom.energy)
+        faces = model.domain.x3boundary
+        bcs = getproperty.(Ref(model.boundary_conditions), faces)
+        fluxes = (;
+            zip(
+                faces,
+                return_fluxes.(Ref(Y), bcs, faces, Ref(model), Ref(cspace), t),
+            )...,
+        )
 
         sp = model.soil_param_set
         param_set = model.earth_param_set
@@ -293,14 +313,22 @@ function make_rhs!(
         interpc2f = Operators.InterpolateC2F()
         gradc2f_heat = Operators.GradientC2F()
         divf2c_heat = Operators.DivergenceF2C(
-            top = Operators.SetValue(top_heat_flux),
-            bottom = Operators.SetValue(btm_heat_flux),
+            top = Operators.SetValue(
+                Geometry.Cartesian3Vector(fluxes.top.fρe_int),
+            ),
+            bottom = Operators.SetValue(
+                Geometry.Cartesian3Vector(fluxes.bottom.fρe_int),
+            ),
         )
 
         gradc2f_water = Operators.GradientC2F()
         divf2c_water = Operators.DivergenceF2C(
-            top = Operators.SetValue(top_water_flux),
-            bottom = Operators.SetValue(btm_water_flux),
+            top = Operators.SetValue(
+                Geometry.Cartesian3Vector(fluxes.top.fϑ_l),
+            ),
+            bottom = Operators.SetValue(
+                Geometry.Cartesian3Vector(fluxes.bottom.fϑ_l),
+            ),
         )
 
         @. dϑ_l = -divf2c_water(-interpc2f(K) * gradc2f_water(h)) #Richards equation
