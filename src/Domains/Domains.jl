@@ -2,16 +2,22 @@ module Domains
 
 using ClimaCore
 using Printf
+using DocStringExtensions
 
 import ClimaCore: Meshes, Spaces, Topologies
 
 """
     AbstractDomain
+
+An abstract type for domains.
 """
 abstract type AbstractDomain end
 
 """
-    AbstractVerticalDomain
+    AbstractVerticalDomain{FT}
+
+An abstract type for vertical domains, using the floating point
+type FT. 
 """
 abstract type AbstractVerticalDomain{FT} <: AbstractDomain end
 
