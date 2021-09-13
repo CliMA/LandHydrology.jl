@@ -78,11 +78,16 @@ using LandHydrology.SurfaceFlowInterface
     end
     Y1 = set_initial_state(soil_model, initial_conditions, 0.0)
     surface_model = SurfaceFlowModel()
-    ic_surf = ()-> (h = [0.0],)
-    land_model = LandHydrologyModel(soil = soil_model, surface_flow = surface_model)
+    ic_surf = () -> (h = [0.0],)
+    land_model =
+        LandHydrologyModel(soil = soil_model, surface_flow = surface_model)
 
-    soil_rhs! = make_rhs(soil_model, land_model)
-    Y2 = set_initial_state(land_model, (soil = initial_conditions,surface_flow = ic_surf), 0.0)
+    soil_rhs! = make_rhs(soil_model)
+    Y2 = set_initial_state(
+        land_model,
+        (soil = initial_conditions, surface_flow = ic_surf),
+        0.0,
+    )
     land_rhs! = make_rhs(land_model)
     dY1 = similar(Y1)
     dY2 = similar(Y2)
@@ -98,10 +103,6 @@ using LandHydrology.SurfaceFlowInterface
     prob = ODEProblem(land_rhs!, Y2, (t0, tf), [])
 
     # solve simulation
-    sol = solve(
-        prob,
-        SSPRK33(),
-        dt = dt,
-    )
+    sol = solve(prob, SSPRK33(), dt = dt)
     @test (sol.u[end].surface_flow.h[1] == 200.0)
 end

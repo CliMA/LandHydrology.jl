@@ -7,16 +7,6 @@ using .Models: AbstractModel
 import .Models: make_rhs
 
 struct NotIncluded <: AbstractModel end
-Base.@kwdef struct FakeModel <: AbstractModel
-    name::Symbol = :fake
-    variables::Tuple = (:f,)
-end
-
-Base.@kwdef struct FakeModel2 <: AbstractModel
-    name::Symbol = :fake2
-    variables::Tuple = (:f2,)
-end
-
 
 Base.@kwdef struct LandHydrologyModel <: AbstractModel
     soil::AbstractModel = NotIncluded()
@@ -25,13 +15,21 @@ end
 
 """
     function Models.make_rhs(model::LandHydrologyModel)
+
+Makes the rhs!(dY, Y, p t) ODE function for the entire land model.
+
+Note that the default `make_rhs!(model::AbstractModel)` does not
+alter any of the state variables. This is appropriate for subcomponents
+ of type `NotIncluded`, for example, and may be appropriate for subcomponents
+that are prescribed as well. The upshot is: if you do not define a 
+method of `make_rhs!` for your specific model type, it will not adjust Y.
 """
 function Models.make_rhs(model::LandHydrologyModel)
     subcomponents = propertynames(model)
     rhs_functions = []
     for sc_name in subcomponents
         sc = getproperty(model, sc_name)
-        sc_rhs! = Models.make_rhs(sc, model)
+        sc_rhs! = Models.make_rhs(sc)
         push!(rhs_functions, sc_rhs!)
     end
 
@@ -48,6 +46,8 @@ end
     function set_initial_state(model::LandHydrologyModel)
 
 Compose initial state out of initial conditions for each subcomponent.
+
+If your model subcomponent type is `NotIncluded`, no variables are added to the RHS.
 """
 function set_initial_state(model::LandHydrologyModel, f::NamedTuple, t0::Real)
     subcomponents = propertynames(model)
@@ -65,7 +65,6 @@ function set_initial_state(model::LandHydrologyModel, f::NamedTuple, t0::Real)
     return Y
 
 end
-
 
 function get_initial_state(model::AbstractModel, f, t0::Real) end # not sure if we need this
 
