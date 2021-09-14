@@ -15,11 +15,6 @@
     #collect all params
     msp = SoilParams{FT}(
         ν,
-        vg_n,
-        vg_α,
-        vg_m,
-        Ksat,
-        θ_r,
         S_s,
         0.0,
         0.0,
@@ -55,10 +50,15 @@
     )
 
     # create model
+    hydraulics_model =
+        vanGenuchten{FT}(n = vg_n, α = vg_α, Ksat = Ksat, θr = θ_r)
+
     soil_model = SoilModel(
         domain = domain,
         energy_model = PrescribedTemperatureModel(),
-        hydrology_model = SoilHydrologyModel(),
+        hydrology_model = SoilHydrologyModel{FT}(
+            hydraulic_model = hydraulics_model,
+        ),
         boundary_conditions = bc,
         soil_param_set = msp,
         earth_param_set = param_set,
@@ -147,11 +147,6 @@ end
     #collect all params
     msp = SoilParams{FT}(
         ν,
-        vg_n,
-        vg_α,
-        vg_m,
-        Ksat,
-        θ_r,
         S_s,
         0.0,
         0.0,
@@ -184,12 +179,15 @@ end
         top = SoilComponentBC(hydrology = Dirichlet(top_state)),
         bottom = SoilComponentBC(hydrology = FreeDrainage()),
     )
-
+    hydraulics_model =
+        vanGenuchten{FT}(n = vg_n, α = vg_α, Ksat = Ksat, θr = θ_r)
     # create model
     soil_model = SoilModel(
         domain = domain,
         energy_model = PrescribedTemperatureModel(),
-        hydrology_model = SoilHydrologyModel(),
+        hydrology_model = SoilHydrologyModel(
+            hydraulic_model = hydraulics_model,
+        ),
         boundary_conditions = bc,
         soil_param_set = msp,
         earth_param_set = param_set,

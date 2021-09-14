@@ -50,11 +50,6 @@ b = FT(18.1)
 #collect all params
 msp = SoilParams{FT}(
     ν,
-    vg_n,
-    vg_α,
-    vg_m,
-    Ksat,
-    θ_r,
     S_s,
     ν_ss_gravel,
     ν_ss_om,
@@ -98,12 +93,14 @@ bc = SoilDomainBC(
     ),
 )
 
-
 # create model
+hydraulics_model = vanGenuchten{FT}(n = vg_n, α = vg_α, Ksat = Ksat, θr = θ_r)
+
+
 soil_model = SoilModel(
     domain = domain,
     energy_model = SoilEnergyModel(),
-    hydrology_model = SoilHydrologyModel(),
+    hydrology_model = SoilHydrologyModel(hydraulic_model = hydraulics_model),
     boundary_conditions = bc,
     soil_param_set = msp,
     earth_param_set = param_set,
@@ -157,7 +154,7 @@ z = parent(zc)
 
 
 
-
+#=
 indices = [1, 36, 72, 108, length(sol.t)]
 labels = ["IC", "18h", "36h", "54h", "72h"]
 plot1 = plot(
@@ -181,3 +178,4 @@ for i in 1:1:length(indices)
 end
 
 plot(plot1, plot2)
+=#

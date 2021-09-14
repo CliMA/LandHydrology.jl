@@ -15,11 +15,6 @@
     msp = SoilParams{FT}(
         ν,
         0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
         ν_ss_gravel,
         ν_ss_om,
         ν_ss_quartz,

@@ -3,6 +3,7 @@ using CLIMAParameters
 struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 
+using UnPack
 using OrdinaryDiffEq:
     ODEProblem,
     solve,
@@ -20,5 +21,11 @@ using ArtifactWrappers
 using DelimitedFiles
 
 include("test_domains.jl")
-include("SoilModel/richards_equation.jl")
-include("SoilModel/heat_test_interface.jl")
+@testset "Soil Model" begin
+    @info "Testing LandHydrology Soil model"
+    include("SoilModel/coupled.jl")
+    include("SoilModel/richards_equation.jl")
+    include("SoilModel/heat_test_interface.jl")
+    include("SoilModel/test_water_parameterizations.jl")
+    include("SoilModel/test_heat_parameterizations.jl")
+end
