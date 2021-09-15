@@ -105,8 +105,9 @@ function make_rhs!(
 
         sp = model.soil_param_set
         param_set = model.earth_param_set
-        @unpack ν, vgn, vgα, vgm, ksat, θr, S_s, ρc_ds = sp
-
+        @unpack ν, S_s, ρc_ds = sp
+        hm = hydrology.hydraulic_model
+        @unpack θr = hm
         # Evaluate T at the current time, update ρe_int
         θ_l = ϑ_l
         T = energy.T_profile.(zc, t)
@@ -127,17 +128,8 @@ function make_rhs!(
 
         # Compute hydraulic head, conductivity
         S = effective_saturation.(θ_l; ν = ν, θr = θr)
-        K = hydraulic_conductivity.(S; vgm = vgm, ksat = ksat)
-        ψ =
-            pressure_head.(
-                S;
-                vgn = vgn,
-                vgα = vgα,
-                vgm = vgm,
-                ν = ν,
-                θr = θr,
-                S_s = S_s,
-            )
+        K = hydraulic_conductivity.(Ref(hm), S)
+        ψ = pressure_head.(Ref(hm), S; ν = ν, S_s = S_s)
 
         h = ψ .+ zc
 
@@ -269,16 +261,9 @@ function make_rhs!(
 
         sp = model.soil_param_set
         param_set = model.earth_param_set
-        @unpack ν,
-        vgn,
-        vgα,
-        vgm,
-        ksat,
-        θr,
-        S_s,
-        ρc_ds,
-        κ_sat_unfrozen,
-        κ_sat_frozen = sp
+        hm = hydrology.hydraulic_model
+        @unpack θr = hm
+        @unpack ν, S_s, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
 
         # Compute center values of everything
         θ_l = ϑ_l
@@ -298,17 +283,8 @@ function make_rhs!(
         ρe_int_l = volumetric_internal_energy_liq.(T, Ref(param_set))
 
         S = effective_saturation.(θ_l; ν = ν, θr = θr)
-        K = hydraulic_conductivity.(S; vgm = vgm, ksat = ksat)
-        ψ =
-            pressure_head.(
-                S;
-                vgn = vgn,
-                vgα = vgα,
-                vgm = vgm,
-                ν = ν,
-                θr = θr,
-                S_s = S_s,
-            )
+        K = hydraulic_conductivity.(Ref(hm), S)
+        ψ = pressure_head.(Ref(hm), S; ν = ν, S_s = S_s)
         h = ψ .+ zc
 
         # rhs operators

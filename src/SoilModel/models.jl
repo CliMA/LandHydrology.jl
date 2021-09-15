@@ -24,7 +24,11 @@ the flow of water in soil by solving Richards equation.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilHydrologyModel <: AbstractSoilComponentModel end
+Base.@kwdef struct SoilHydrologyModel{FT <: AbstractFloat} <:
+                   AbstractSoilComponentModel
+    hydraulic_model::vanGenuchten{FT} = vanGenuchten{FT}()
+end
+
 
 """
     Base.@kwdef struct PrescribedTemperatureModel <: AbstractSoilComponentModel

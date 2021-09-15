@@ -7,11 +7,6 @@ abstract type ParameterStructure{FT <: AbstractFloat} end
 """
 struct SoilParams{FT} <: ParameterStructure{FT}
     ν::FT
-    vgn::FT
-    vgα::FT
-    vgm::FT
-    ksat::FT
-    θr::FT
     S_s::FT
     ν_ss_gravel::FT
     ν_ss_om::FT

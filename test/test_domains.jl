@@ -7,7 +7,7 @@ function instantiate_column(FT)
 end
 float_types = (Float32, Float64)
 @testset "Domains" begin
-    @info "Testing ClimaAtmos.Domains..."
+    @info "Testing LandHydrology.Domains..."
 
     @testset "Domains" begin
         for FT in float_types

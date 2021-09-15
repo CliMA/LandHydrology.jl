@@ -271,9 +271,11 @@ function get_vertical_flux(
     θ_l = ϑ_l[1]
     θ_i = θ_i[1]
     T = T[1]
-    @unpack ν, vgm, ksat, θr = soil.soil_param_set
+    @unpack ν = soil.soil_param_set
+    hm = soil.hydrology_model.hydraulic_model
+    @unpack θr = hm
     S = effective_saturation(θ_l; ν = ν, θr = θr)
-    K = hydraulic_conductivity(S; vgm = vgm, ksat = ksat)
+    K = hydraulic_conductivity(hm, S)
     flux = -K # = -K∇h when ∇h = 1. ∇h = 1 -> θ_c = θ_f at the bottom, so use K(θ_c).
     return flux
 
@@ -303,19 +305,12 @@ function get_vertical_flux(
     @unpack ϑ_l, θ_i, T = Y_cf # [center, face]
     θ_l = ϑ_l
 
-    @unpack ν, vgα, vgn, vgm, ksat, θr, S_s = soil.soil_param_set
+    @unpack ν, S_s = soil.soil_param_set
+    hm = soil.hydrology_model.hydraulic_model
+    @unpack θr = hm
     S = effective_saturation.(θ_l; ν = ν, θr = θr)
-    K = hydraulic_conductivity.(S; vgm = vgm, ksat = ksat)
-    ψ =
-        pressure_head.(
-            S;
-            vgn = vgn,
-            vgα = vgα,
-            vgm = vgm,
-            ν = ν,
-            θr = θr,
-            S_s = S_s,
-        )
+    K = hydraulic_conductivity.(Ref(hm), S)
+    ψ = pressure_head.(Ref(hm), S; ν = ν, S_s = S_s)
     flux = -K[2] * (ψ[2] - ψ[1] + dz) / dz
     if face == :bottom # at the bottom
         flux *= -1
