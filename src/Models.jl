@@ -1,7 +1,7 @@
 module Models
 export AbstractModel
 """
-    abstract type AbstractModel
+    AbstractModel
 
 An abstract type for models.
 

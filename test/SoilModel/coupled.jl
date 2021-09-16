@@ -81,7 +81,7 @@
     )
 
     # initial conditions
-    function initial_conditions(z::FT, t0::FT, model::SoilModel)
+    function initial_conditions(z::FT, model::SoilModel)
         param_set = model.earth_param_set
         T = 289.0 + 5.0 * z
         θ_i = 0.0
@@ -91,25 +91,16 @@
         ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, param_set)
         return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
     end
-    Y = set_initial_state(soil_model, initial_conditions, 0.0)
+    Y, Ya = initialize_states(soil_model, initial_conditions, t0)
     soil_rhs! = make_rhs(soil_model)
-    prob = ODEProblem(soil_rhs!, Y, (t0, tf), [])
+    prob = ODEProblem(soil_rhs!, Y, (t0, tf), Ya)
 
     # solve simulation
-    sol = solve(
-        prob,
-        SSPRK33(),
-        dt = dt,
-        saveat = 60 * dt,
-        progress = true,
-        progress_message = (dt, u, p, t) -> t,
-    )
+    sol = solve(prob, SSPRK33(), dt = dt, saveat = 60 * dt)
 
-    space_c, _ = make_function_space(domain)
-    zc = Fields.coordinate_field(space_c)
-    z = parent(zc)
-    vlf = parent(sol.u[end].ϑ_l)
-    ρeint = parent(sol.u[end].ρe_int)
+    z = parent(Ya.zc)
+    vlf = parent(sol.u[end].soil.ϑ_l)
+    ρeint = parent(sol.u[end].soil.ρe_int)
     ρc_s = volumetric_heat_capacity.(vlf, 0.0, ρc_ds, Ref(param_set))
 
     temp = temperature_from_ρe_int.(ρeint, 0.0, ρc_s, Ref(param_set))
