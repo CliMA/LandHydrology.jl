@@ -110,29 +110,44 @@ end
 
 
 """
-    function get_values(Y, face::Symbol)
+    interior_values(Y::Fields.FieldVector, face::Symbol, cs::Spaces.CenterFiniteDifferenceSpace)::Vector{eltype(Y)}
 
 Returns the values of the (center) state variables Y nearest to the boundary
 face `face`.
 """
-function get_values(Y, face::Symbol)
+function interior_values(
+    Y::Fields.FieldVector,
+    face::Symbol,
+    cs::Spaces.CenterFiniteDifferenceSpace,
+)::Vector{eltype(Y)}
     @unpack ϑ_l, θ_i, ρe_int = Y
+    N = length(cs.center_local_geometry)
     if face == :top
-        return last(parent(ϑ_l)), last(parent(θ_i)), last(parent(ρe_int))
+        return Operators.getidx.(
+            [Y.ϑ_l, Y.θ_i, Y.ρe_int],
+            Ref(Operators.Interior()),
+            N,
+        )
     elseif face == :bottom
-        return first(parent(ϑ_l)), first(parent(θ_i)), first(parent(ρe_int))
+        return Operators.getidx.(
+            [Y.ϑ_l, Y.θ_i, Y.ρe_int],
+            Ref(Operators.Interior()),
+            1,
+        )
     else
         throw(ArgumentError("Expected :top or :bottom"))
     end
 end
 
 """
-    function get_distance(face::Symbol, cs)
+    boundary_cf_distance(face::Symbol, cs::Spaces.CenterFiniteDifferenceSpace)::Real
 
 Returns the distance from the last center space `cs` node to the nearest face `face`.
 """
-function get_distance(face::Symbol, cs)
-    FT = eltype(cs.mesh)
+function boundary_cf_distance(
+    face::Symbol,
+    cs::Spaces.CenterFiniteDifferenceSpace,
+)::Real
     if face == :top
         return last(cs.face_local_geometry.WJ)
     elseif face == :bottom
@@ -151,8 +166,8 @@ for each of ϑ_l, θ_i, T.
 
 The initialization sets the boundary face value equal to the center value.
 """
-function initialize_boundary_values(Y, face::Symbol, model::SoilModel)
-    ϑ_l, θ_i, ρe_int = get_values(Y, face)
+function initialize_boundary_values(Y, face::Symbol, model::SoilModel, cs)
+    ϑ_l, θ_i, ρe_int = interior_values(Y, face, cs)
     θ_l = ϑ_l
     @unpack ρc_ds = model.soil_param_set
     param_set = model.earth_param_set
@@ -223,11 +238,11 @@ function set_boundary_values!(
 end
 
 """
-     function get_vertical_flux(bc::VerticalFlux, component::AbstractSoilComponentModel, _...)
+     function vertical_flux(bc::VerticalFlux, component::AbstractSoilComponentModel, _...)
 
 Return the vertical flux value at the boundary (flux boundary condition).
 """
-function get_vertical_flux(
+function vertical_flux(
     bc::VerticalFlux,
     component::AbstractSoilComponentModel,
     _...,
@@ -236,7 +251,7 @@ function get_vertical_flux(
 end
 
 """
-     function get_vertical_flux(bc::NoBC, _...)
+     function vertical_flux(bc::NoBC, _...)
 
 Returns nothing.
 
@@ -244,12 +259,12 @@ Prescribed models, or models that do not require boundary conditions, have `NoBC
 the boundary type (as opposed to `Dirichlet`, or `VerticalFlux`, e.g.).
  In this case, do not return any flux.
 """
-function get_vertical_flux(bc::NoBC, _...)
+function vertical_flux(bc::NoBC, _...)
     nothing
 end
 
 """
-    function get_vertical_flux(
+    function vertical_flux(
         bc::FreeDrainage,
         component::SoilHydrologyModel,
         Y_cf::NamedTuple,
@@ -260,7 +275,7 @@ end
 Returns the vertical flux of water volume at the bottom of the domain
 in the case of free drainage.
 """
-function get_vertical_flux(
+function vertical_flux(
     bc::FreeDrainage,
     component::SoilHydrologyModel,
     Y_cf::NamedTuple,
@@ -282,7 +297,7 @@ function get_vertical_flux(
 end
 
 """
-    function get_vertical_flux(
+    function vertical_flux(
         bc::Dirichlet,
         component::SoilHydrologyModel,
         Y_cf::NamedTuple,
@@ -294,7 +309,7 @@ end
 Computes the volumetric water flux assuming a Dirichlet condtion
 on `ϑ_l` at the boundary.
 """
-function get_vertical_flux(
+function vertical_flux(
     bc::Dirichlet,
     component::SoilHydrologyModel,
     Y_cf::NamedTuple,
@@ -320,7 +335,7 @@ function get_vertical_flux(
 end
 
 """
-    function get_vertical_flux(
+    function vertical_flux(
         bc::Dirichlet,
         component::SoilEnergyModel,
         Y_cf::NamedTuple,
@@ -332,7 +347,7 @@ end
 Computes the energy flux assuming a Dirichlet condtion
 on `T` at the boundary.
 """
-function get_vertical_flux(
+function vertical_flux(
     bc::Dirichlet,
     component::SoilEnergyModel,
     Y_cf::NamedTuple,
@@ -361,7 +376,7 @@ function get_vertical_flux(
 end
 
 """
-    function return_fluxes(
+    function boundary_fluxes(
         Y,
         bc::SoilComponentBC,
         face::Symbol,
@@ -373,7 +388,7 @@ end
 Returns the boundary flux at the boundary `face` for all
 components of the soil model. 
 """
-function return_fluxes(
+function boundary_fluxes(
     Y,
     bc::SoilComponentBC,
     face::Symbol,
@@ -384,12 +399,12 @@ function return_fluxes(
     energy = model.energy_model
     hydrology = model.hydrology_model
 
-    Y_cf = initialize_boundary_values(Y, face, model)
+    Y_cf = initialize_boundary_values(Y, face, model, cs)
     set_boundary_values!(Y_cf, bc.energy, energy, t)
     set_boundary_values!(Y_cf, bc.hydrology, hydrology, t)
 
-    dz = get_distance(face, cs)
-    fρe_int = get_vertical_flux(bc.energy, energy, Y_cf, model, dz, face)
-    fϑ_l = get_vertical_flux(bc.hydrology, hydrology, Y_cf, model, dz, face)
+    dz = boundary_cf_distance(face, cs)
+    fρe_int = vertical_flux(bc.energy, energy, Y_cf, model, dz, face)
+    fϑ_l = vertical_flux(bc.hydrology, hydrology, Y_cf, model, dz, face)
     return (fρe_int = fρe_int, fϑ_l = fϑ_l)
 end
