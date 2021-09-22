@@ -114,6 +114,24 @@ function make_rhs!(
         zc = coordinates(cspace)
         FT = eltype(zc)
 
+        # Evaluate T at the current time, update ρe_int
+        θ_l = ϑ_l
+        T = energy.T_profile.(zc, t)
+        ρc_s =
+            volumetric_heat_capacity.(
+                θ_l,
+                θ_i,
+                model.soil_param_set.ρc_ds,
+                Ref(model.earth_param_set),
+            )
+        ρe_int =
+            volumetric_internal_energy.(
+                θ_i,
+                ρc_s,
+                T,
+                Ref(model.earth_param_set),
+            )
+
         # boundary conditions and parameters
         faces = model.domain.x3boundary
         bcs = getproperty.(Ref(model.boundary_conditions), faces)
@@ -136,23 +154,6 @@ function make_rhs!(
         @unpack ν, S_s, ρc_ds = sp
         hm = hydrology.hydraulic_model
         @unpack θr = hm
-        # Evaluate T at the current time, update ρe_int
-        θ_l = ϑ_l
-        T = energy.T_profile.(zc, t)
-        ρc_s =
-            volumetric_heat_capacity.(
-                θ_l,
-                θ_i,
-                model.soil_param_set.ρc_ds,
-                Ref(model.earth_param_set),
-            )
-        ρe_int =
-            volumetric_internal_energy.(
-                θ_i,
-                ρc_s,
-                T,
-                Ref(model.earth_param_set),
-            )
 
         # Compute hydraulic head, conductivity
         S = effective_saturation.(θ_l; ν = ν, θr = θr)
@@ -203,6 +204,12 @@ function make_rhs!(
         zc = coordinates(cspace)
         FT = eltype(zc)
 
+        # update water content based on prescribed profiles, set RHS to zero.
+        ϑ_l = hydrology.ϑ_l_profile.(zc, t)
+        θ_i = hydrology.θ_i_profile.(zc, t)
+        dϑ_l = zero_field(FT, cspace)
+        dθ_i = zero_field(FT, cspace)
+
         # boundary conditions and parameters
         faces = model.domain.x3boundary
         bcs = getproperty.(Ref(model.boundary_conditions), faces)
@@ -223,12 +230,6 @@ function make_rhs!(
         sp = model.soil_param_set
         param_set = model.earth_param_set
         @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
-
-        # update water content based on prescribed profiles, set RHS to zero.
-        ϑ_l = hydrology.ϑ_l_profile.(zc, t)
-        θ_i = hydrology.θ_i_profile.(zc, t)
-        dϑ_l = zero_field(FT, cspace)
-        dθ_i = zero_field(FT, cspace)
 
         # Compute center values of everything
         θ_l = ϑ_l
