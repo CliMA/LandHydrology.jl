@@ -12,7 +12,7 @@ A simulation wraps an abstract LandHydrology `model` containing
 equation specifications and an instance of an `integrator` used for
 time integration of the discretized model PDE.
 """
-struct Simulation{ML<:AbstractModel} <: AbstractSimulation
+struct Simulation{ML <: AbstractModel} <: AbstractSimulation
     model::ML
     integrator::DiffEqBase.DEIntegrator
     callbacks::Union{
@@ -36,6 +36,9 @@ function Simulation(
     tspan,
     callbacks = nothing,
 )
+
+    # inital state is either default or set externally 
+    Y = Y_init isa Nothing ? default_initial_conditions(model) : Y_init
 
     # contains all information about the 
     # pde systems jacobians and right-hand sides
