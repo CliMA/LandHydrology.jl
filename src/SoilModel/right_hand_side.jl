@@ -1,26 +1,6 @@
 export make_rhs
 
 """
-    coordinates(cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field
-
-Returns the coordinates of the space passed as an argument. For columns,
-this returns the `z` values.
-"""
-coordinates(cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field =
-    Fields.local_geometry_field(cs).coordinates
-
-
-"""
-    zero_field(ft, cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field
-
-Wrapper function returning a field on the space `cs`,
-with all values = 0, of type `ft`.
-"""
-zero_field(ft, cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field =
-    Fields.zeros(ft, cs)
-
-
-"""
     make_rhs(model::SoilModel)
 
 A function which takes a model::AbstractModel as argument, 
@@ -81,13 +61,12 @@ function make_rhs!(
             )
 
         # RHS is zero
-        cspace = axes(ϑ_l)
-        zc = coordinates(cspace)
+        space = axes(ϑ_l)
+        zc = Fields.coordinate_field(cspace)
         FT = eltype(zc)
-
-        dϑ_l = zero_field(FT, cspace)
-        dθ_i = zero_field(FT, cspace)
-        dρe_int = zero_field(FT, cspace)
+        dϑ_l = Fields.zeros(FT, cspace)
+        dθ_i = Fields.zeros(FT, cspace)
+        dρe_int = Fields.zeros(FT, cspace)
         return dY
     end
     return rhs!
@@ -111,7 +90,7 @@ function make_rhs!(
         ρe_int = Y.ρe_int
 
         cspace = axes(ϑ_l)
-        zc = coordinates(cspace)
+        zc = Fields.coordinate_field(cspace)
         FT = eltype(zc)
 
         # boundary conditions and parameters
@@ -120,14 +99,7 @@ function make_rhs!(
         fluxes = (;
             zip(
                 faces,
-                boundary_fluxes.(
-                    Ref(Y),
-                    bcs,
-                    faces,
-                    Ref(model),
-                    Ref(cspace),
-                    t,
-                ),
+                return_fluxes.(Ref(Y), bcs, faces, Ref(model), Ref(cspace), t),
             )...,
         )
 
@@ -174,8 +146,8 @@ function make_rhs!(
         )
 
         @. dϑ_l = -(divf2c_water(-interpc2f(K) * gradc2f_water(h))) #Richards equation
-        dθ_i = zero_field(FT, cspace)
-        dρe_int = zero_field(FT, cspace)
+        dθ_i = Fields.zeros(FT, cspace)
+        dρe_int = Fields.zeros(FT, cspace)
 
         return dY
     end
@@ -200,7 +172,7 @@ function make_rhs!(
         ρe_int = Y.ρe_int
 
         cspace = axes(ϑ_l)
-        zc = coordinates(cspace)
+        zc = Fields.coordinate_field(cspace)
         FT = eltype(zc)
 
         # boundary conditions and parameters
@@ -209,14 +181,7 @@ function make_rhs!(
         fluxes = (;
             zip(
                 faces,
-                boundary_fluxes.(
-                    Ref(Y),
-                    bcs,
-                    faces,
-                    Ref(model),
-                    Ref(cspace),
-                    t,
-                ),
+                return_fluxes.(Ref(Y), bcs, faces, Ref(model), Ref(cspace), t),
             )...,
         )
 
@@ -227,8 +192,8 @@ function make_rhs!(
         # update water content based on prescribed profiles, set RHS to zero.
         ϑ_l = hydrology.ϑ_l_profile.(zc, t)
         θ_i = hydrology.θ_i_profile.(zc, t)
-        dϑ_l = zero_field(FT, cspace)
-        dθ_i = zero_field(FT, cspace)
+        dϑ_l = Fields.zeros(FT, cspace)
+        dθ_i = Fields.zeros(FT, cspace)
 
         # Compute center values of everything
         θ_l = ϑ_l
@@ -281,7 +246,7 @@ function make_rhs!(
         ρe_int = Y.ρe_int
 
         cspace = axes(ϑ_l)
-        zc = coordinates(cspace)
+        zc = Fields.coordinate_field(cspace)
         FT = eltype(zc)
 
         # boundary conditions and parameters
@@ -290,14 +255,7 @@ function make_rhs!(
         fluxes = (;
             zip(
                 faces,
-                boundary_fluxes.(
-                    Ref(Y),
-                    bcs,
-                    faces,
-                    Ref(model),
-                    Ref(cspace),
-                    t,
-                ),
+                return_fluxes.(Ref(Y), bcs, faces, Ref(model), Ref(cspace), t),
             )...,
         )
 
@@ -352,7 +310,7 @@ function make_rhs!(
         )
 
         @. dϑ_l = -divf2c_water(-interpc2f(K) * gradc2f_water(h)) #Richards equation
-        dθ_i = zero_field(FT, cspace)
+        dθ_i = Fields.zeros(FT, cspace)
 
         @. dρe_int =
             -divf2c_heat(
