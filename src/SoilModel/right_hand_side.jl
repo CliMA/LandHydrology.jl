@@ -1,6 +1,22 @@
 export make_rhs
 
 """
+    coordinates(cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field
+Returns the `z` coordinates of the space passed as an argument.
+"""
+coordinates(cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field =
+    getproperty(Fields.coordinate_field(cs), :z)
+
+
+"""
+    zero_field(ft, cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field
+Wrapper function returning a field on the space `cs`,
+with all values = 0, of type `ft`.
+"""
+zero_field(ft, cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field =
+    Fields.zeros(ft, cs)
+
+"""
     make_rhs(model::SoilModel)
 
 A function which takes a model::AbstractModel as argument, 
@@ -40,6 +56,10 @@ function make_rhs!(
         θ_i = Y.θ_i
         ρe_int = Y.ρe_int
 
+
+        cspace = axes(ϑ_l)
+        zc = coordinates(cspace)
+        FT = eltype(zc)
         #update the state Y with prescribed values at the current time
         ϑ_l = hydrology.ϑ_l_profile.(zc, t)
         θ_i = hydrology.θ_i_profile.(zc, t)
@@ -60,13 +80,9 @@ function make_rhs!(
                 Ref(model.earth_param_set),
             )
 
-        # RHS is zero
-        space = axes(ϑ_l)
-        zc = Fields.coordinate_field(cspace)
-        FT = eltype(zc)
-        dϑ_l = Fields.zeros(FT, cspace)
-        dθ_i = Fields.zeros(FT, cspace)
-        dρe_int = Fields.zeros(FT, cspace)
+        dϑ_l = zero_field(FT, cspace)
+        dθ_i = zero_field(FT, cspace)
+        dρe_int = zero_field(FT, cspace)
         return dY
     end
     return rhs!
@@ -90,24 +106,8 @@ function make_rhs!(
         ρe_int = Y.ρe_int
 
         cspace = axes(ϑ_l)
-        zc = Fields.coordinate_field(cspace)
+        zc = coordinates(cspace)
         FT = eltype(zc)
-
-        # boundary conditions and parameters
-        faces = model.domain.x3boundary
-        bcs = getproperty.(Ref(model.boundary_conditions), faces)
-        fluxes = (;
-            zip(
-                faces,
-                return_fluxes.(Ref(Y), bcs, faces, Ref(model), Ref(cspace), t),
-            )...,
-        )
-
-        sp = model.soil_param_set
-        param_set = model.earth_param_set
-        @unpack ν, S_s, ρc_ds = sp
-        hm = hydrology.hydraulic_model
-        @unpack θr = hm
         # Evaluate T at the current time, update ρe_int
         θ_l = ϑ_l
         T = energy.T_profile.(zc, t)
@@ -125,6 +125,29 @@ function make_rhs!(
                 T,
                 Ref(model.earth_param_set),
             )
+
+        # boundary conditions and parameters
+        faces = model.domain.boundary_tags
+        bcs = getproperty.(Ref(model.boundary_conditions), faces)
+        fluxes = (;
+            zip(
+                faces,
+                boundary_fluxes.(
+                    Ref(Y),
+                    bcs,
+                    faces,
+                    Ref(model),
+                    Ref(cspace),
+                    t,
+                ),
+            )...,
+        )
+
+        sp = model.soil_param_set
+        param_set = model.earth_param_set
+        @unpack ν, S_s, ρc_ds = sp
+        hm = hydrology.hydraulic_model
+        @unpack θr = hm
 
         # Compute hydraulic head, conductivity
         S = effective_saturation.(θ_l; ν = ν, θr = θr)
@@ -146,8 +169,8 @@ function make_rhs!(
         )
 
         @. dϑ_l = -(divf2c_water(-interpc2f(K) * gradc2f_water(h))) #Richards equation
-        dθ_i = Fields.zeros(FT, cspace)
-        dρe_int = Fields.zeros(FT, cspace)
+        dθ_i = zero_field(FT, cspace)
+        dρe_int = zero_field(FT, cspace)
 
         return dY
     end
@@ -172,29 +195,34 @@ function make_rhs!(
         ρe_int = Y.ρe_int
 
         cspace = axes(ϑ_l)
-        zc = Fields.coordinate_field(cspace)
+        zc = coordinates(cspace)
         FT = eltype(zc)
+        # update water content based on prescribed profiles, set RHS to zero.
+        ϑ_l = hydrology.ϑ_l_profile.(zc, t)
+        θ_i = hydrology.θ_i_profile.(zc, t)
+        dϑ_l = zero_field(FT, cspace)
+        dθ_i = zero_field(FT, cspace)
 
         # boundary conditions and parameters
-        faces = model.domain.x3boundary
+        faces = model.domain.boundary_tags
         bcs = getproperty.(Ref(model.boundary_conditions), faces)
         fluxes = (;
             zip(
                 faces,
-                return_fluxes.(Ref(Y), bcs, faces, Ref(model), Ref(cspace), t),
+                boundary_fluxes.(
+                    Ref(Y),
+                    bcs,
+                    faces,
+                    Ref(model),
+                    Ref(cspace),
+                    t,
+                ),
             )...,
         )
 
         sp = model.soil_param_set
         param_set = model.earth_param_set
         @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
-
-        # update water content based on prescribed profiles, set RHS to zero.
-        ϑ_l = hydrology.ϑ_l_profile.(zc, t)
-        θ_i = hydrology.θ_i_profile.(zc, t)
-        dϑ_l = Fields.zeros(FT, cspace)
-        dθ_i = Fields.zeros(FT, cspace)
-
         # Compute center values of everything
         θ_l = ϑ_l
         ρc_s = volumetric_heat_capacity.(θ_l, θ_i, ρc_ds, Ref(param_set))
@@ -246,16 +274,23 @@ function make_rhs!(
         ρe_int = Y.ρe_int
 
         cspace = axes(ϑ_l)
-        zc = Fields.coordinate_field(cspace)
+        zc = coordinates(cspace)
         FT = eltype(zc)
 
         # boundary conditions and parameters
-        faces = model.domain.x3boundary
+        faces = model.domain.boundary_tags
         bcs = getproperty.(Ref(model.boundary_conditions), faces)
         fluxes = (;
             zip(
                 faces,
-                return_fluxes.(Ref(Y), bcs, faces, Ref(model), Ref(cspace), t),
+                boundary_fluxes.(
+                    Ref(Y),
+                    bcs,
+                    faces,
+                    Ref(model),
+                    Ref(cspace),
+                    t,
+                ),
             )...,
         )
 
@@ -310,7 +345,7 @@ function make_rhs!(
         )
 
         @. dϑ_l = -divf2c_water(-interpc2f(K) * gradc2f_water(h)) #Richards equation
-        dθ_i = Fields.zeros(FT, cspace)
+        dθ_i = zero_field(FT, cspace)
 
         @. dρe_int =
             -divf2c_heat(
