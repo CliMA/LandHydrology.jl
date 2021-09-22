@@ -61,8 +61,8 @@ function make_rhs!(
         zc = coordinates(cspace)
         FT = eltype(zc)
         #update the state Y with prescribed values at the current time
-        ϑ_l = hydrology.ϑ_l_profile.(zc, t)
-        θ_i = hydrology.θ_i_profile.(zc, t)
+        ϑ_l .= hydrology.ϑ_l_profile.(zc, t)
+        θ_i .= hydrology.θ_i_profile.(zc, t)
         θ_l = ϑ_l # eventually have a conversion to liquid water content
         T = energy.T_profile.(zc, t)
         ρc_s =
@@ -72,7 +72,7 @@ function make_rhs!(
                 model.soil_param_set.ρc_ds,
                 Ref(model.earth_param_set),
             )
-        ρe_int =
+        ρe_int .=
             volumetric_internal_energy.(
                 θ_i,
                 ρc_s,
@@ -80,9 +80,9 @@ function make_rhs!(
                 Ref(model.earth_param_set),
             )
 
-        dϑ_l = zero_field(FT, cspace)
-        dθ_i = zero_field(FT, cspace)
-        dρe_int = zero_field(FT, cspace)
+        dϑ_l .= zero_field(FT, cspace)
+        dθ_i .= zero_field(FT, cspace)
+        dρe_int .= zero_field(FT, cspace)
         return dY
     end
     return rhs!
@@ -118,7 +118,7 @@ function make_rhs!(
                 model.soil_param_set.ρc_ds,
                 Ref(model.earth_param_set),
             )
-        ρe_int =
+        ρe_int .=
             volumetric_internal_energy.(
                 θ_i,
                 ρc_s,
@@ -169,8 +169,8 @@ function make_rhs!(
         )
 
         @. dϑ_l = -(divf2c_water(-interpc2f(K) * gradc2f_water(h))) #Richards equation
-        dθ_i = zero_field(FT, cspace)
-        dρe_int = zero_field(FT, cspace)
+        dθ_i .= zero_field(FT, cspace)
+        dρe_int .= zero_field(FT, cspace)
 
         return dY
     end
@@ -198,10 +198,10 @@ function make_rhs!(
         zc = coordinates(cspace)
         FT = eltype(zc)
         # update water content based on prescribed profiles, set RHS to zero.
-        ϑ_l = hydrology.ϑ_l_profile.(zc, t)
-        θ_i = hydrology.θ_i_profile.(zc, t)
-        dϑ_l = zero_field(FT, cspace)
-        dθ_i = zero_field(FT, cspace)
+        ϑ_l .= hydrology.ϑ_l_profile.(zc, t)
+        θ_i .= hydrology.θ_i_profile.(zc, t)
+        dϑ_l .= zero_field(FT, cspace)
+        dθ_i .= zero_field(FT, cspace)
 
         # boundary conditions and parameters
         faces = model.domain.boundary_tags
