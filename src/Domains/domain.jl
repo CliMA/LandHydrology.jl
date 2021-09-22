@@ -15,7 +15,7 @@ struct Column{FT} <: AbstractVerticalDomain{FT}
     "Number of elements used to discretize the interval"
     nelements::Int32
     "Boundary face identifiers"
-    x3boundary::Tuple{Symbol, Symbol}
+    boundary_tags::Tuple{Symbol, Symbol}
 end
 
 """
@@ -23,13 +23,13 @@ end
 
 Outer constructor for the `Column` type.
 
-The `x3boundary` field values are used to label the boundary faces 
+The `boundary_tags` field values are used to label the boundary faces 
 at the top and bottom of the domain.
 """
 function Column(FT::DataType = Float64; zlim, nelements)
     @assert zlim[1] < zlim[2]
-    x3boundary = (:bottom, :top)
-    return Column{FT}(zlim, nelements, x3boundary)
+    boundary_tags = (:bottom, :top)
+    return Column{FT}(zlim, nelements, boundary_tags)
 end
 
 Base.ndims(::Column) = 1
@@ -57,9 +57,9 @@ column domain.
 """
 function make_function_space(domain::Column{FT}) where {FT}
     column = ClimaCore.Domains.IntervalDomain(
-        domain.zlim[1],
-        domain.zlim[2];
-        domain.x3boundary,
+        Geometry.ZPoint{FT}(domain.zlim[1]),
+        Geometry.ZPoint{FT}(domain.zlim[2]),
+        domain.boundary_tags,
     )
     mesh = Meshes.IntervalMesh(column; nelems = domain.nelements)
     center_space = Spaces.CenterFiniteDifferenceSpace(mesh)
