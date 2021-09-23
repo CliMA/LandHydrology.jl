@@ -36,20 +36,17 @@ using CLIMAParameters.Atmos.Microphysics: K_therm
     @test relative_saturation(0.25, 0.05, 0.4) == FT((0.25 + 0.05) / 0.4)
 
     # Test branching in kersten_number
-    soil_param_functions = SoilParams(
-        0.2,
-        1e-3,
-        0.1,
-        0.1,
-        0.1,
-        0.0,
-        0.1,
-        1.0,
-        0.0,
-        0.0,
-        0.24,
-        18.1,
-        0.053,
+    soil_param_functions = SoilParams{FT}(
+        ν = 0.2,
+        S_s = 1e-3,
+        ν_ss_om = 0.1,
+        ν_ss_gravel = 0.1,
+        ν_ss_quartz = 0.1,
+        ρc_ds = 0.0,
+        κ_solid = 0.1,
+        ρp = 1.0,
+        κ_sat_unfrozen = 0.0,
+        κ_sat_frozen = 0.0,
     )
     # ice fraction = 0
     @test kersten_number(0.0, 0.75, soil_param_functions) == FT(

@@ -32,4 +32,5 @@ include("test_domains.jl")
     include("SoilModel/test_rhs.jl")
     include("SoilModel/test_water_parameterizations.jl")
     include("SoilModel/test_heat_parameterizations.jl")
+    include("SoilModel/test_prescribed_atmos_bc.jl")
 end

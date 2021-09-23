@@ -53,10 +53,10 @@
 
     # initial conditions
     @test_throws ErrorException default_initial_conditions(soil_model)
-    function energy_ic(z, model)
-        T = 0.0
-        θ_i = 0.0
-        θ_l = 0.0
+    function energy_ic(z::ft, model) where {ft <: AbstractFloat}
+        T = ft(0.0)
+        θ_i = ft(0.0)
+        θ_l = ft(0.0)
         ρc_s = volumetric_heat_capacity(
             θ_l,
             θ_i,

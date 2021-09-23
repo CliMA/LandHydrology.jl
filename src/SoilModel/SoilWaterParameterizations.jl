@@ -233,7 +233,7 @@ function pressure_head(
     S_s::FT,
 ) where {FT}
     S_l_eff = effective_saturation(ν_eff, ϑ_l, hm.θr)
-    if S_l_eff < FT(1.0)
+    if S_l_eff <= FT(1.0)
         ψ = matric_potential(hm, S_l_eff)
     else
         ψ = (ϑ_l - ν_eff) / S_s

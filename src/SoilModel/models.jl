@@ -80,14 +80,23 @@ end
 
 
 """
-    SoilModel{FT, domain, em <: AbstractSoilModel, hm <: AbstractSoilModel, bc, sp,ep,n}
+    SoilModel{FT, dm, em <: AbstractSoilModel, hm <: AbstractSoilModel, bc, sp,ep,n}
 
 The model type for the soil model.
 
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilModel{FT, dm, em, hm, bc, sp, ep, n} <: AbstractModel
+struct SoilModel{
+    FT,
+    dm,
+    em <: AbstractSoilComponentModel,
+    hm <: AbstractSoilComponentModel,
+    bc,
+    sp,
+    ep,
+    n,
+} <: AbstractModel
     domain::dm
     "Soil energy model - prescribed or dynamics"
     energy_model::em
@@ -108,11 +117,11 @@ function SoilModel(
     domain::AbstractVerticalDomain{FT},
     energy_model::AbstractSoilComponentModel,
     hydrology_model::AbstractSoilComponentModel,
-    boundary_conditions::BC,
+    boundary_conditions::bc,
     soil_param_set::SoilParams{FT} = SoilParams{FT}(),
     earth_param_set::ep,
     name::Symbol = :soil,
-) where {FT, BC, ep}
+) where {FT, bc, sp, ep}
     args = (
         domain,
         energy_model,
@@ -124,7 +133,6 @@ function SoilModel(
     )
     return SoilModel{FT, typeof.(args)...}(args...)
 end
-
 
 
 """
