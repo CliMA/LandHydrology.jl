@@ -5,7 +5,7 @@ export make_rhs
 Returns the `z` coordinates of the space passed as an argument.
 """
 coordinates(cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field =
-    getproperty(Fields.coordinate_field(cs), :z)
+    Fields.coordinate_field(cs)
 
 
 """
