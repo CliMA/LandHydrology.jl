@@ -108,25 +108,6 @@
 
 
     @test sqrt(mean(ϑ_l[end] .- expected.(z, -0.56)) .^ 2.0) < 1e-4
-
-    #= 
-    #Plotting
-    indices = [1, 88, length(sol.t)]
-    labels = ["IC", "6d", "36d"]
-    plot1 = plot(
-        xlim = (0.4, 0.525),
-        ylim = (-10, 0),
-        legend = :outerright,
-        xlabel = "θ(z)",
-        ylabel = "z",
-    )
-    for i in 1:1:length(indices)
-        plot!(ϑ_l[indices[i]], z, label = labels[i], lw = 2)
-    end
-
-    plot!(expected.(z, -0.56), z, lw =1, label = "expected");
-    plot(plot1)
-        =#
 end
 
 
@@ -185,7 +166,7 @@ end
     soil_model = SoilModel(
         domain = domain,
         energy_model = PrescribedTemperatureModel(),
-        hydrology_model = SoilHydrologyModel(
+        hydrology_model = SoilHydrologyModel{FT}(
             hydraulic_model = hydraulics_model,
         ),
         boundary_conditions = bc,

@@ -27,6 +27,8 @@ $(DocStringExtensions.FIELDS)
 Base.@kwdef struct SoilHydrologyModel{FT <: AbstractFloat} <:
                    AbstractSoilComponentModel
     hydraulic_model::vanGenuchten{FT} = vanGenuchten{FT}()
+    viscosity_factor::AbstractConductivityFactor{FT} = NoEffect{FT}()
+    impedance_factor::AbstractConductivityFactor{FT} = NoEffect{FT}()
 end
 
 

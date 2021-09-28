@@ -166,9 +166,11 @@ The initialization sets the boundary face value equal to the center value.
 """
 function initialize_boundary_values(Y, face::Symbol, model::SoilModel, cs)
     ϑ_l, θ_i, ρe_int = interior_values(Y, face, cs)
-    θ_l = ϑ_l
-    @unpack ρc_ds = model.soil_param_set
+    @unpack ρc_ds, ν = model.soil_param_set
     param_set = model.earth_param_set
+
+    ν_eff = ν .- θ_i
+    θ_l = volumetric_liquid_fraction.(ϑ_l, ν_eff)
     ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, param_set)
     T = temperature_from_ρe_int(ρe_int, θ_i, ρc_s, param_set)
     # center, face
@@ -281,14 +283,23 @@ function vertical_flux(
     _...,
 )
     @unpack ϑ_l, θ_i, T = Y_cf # [center, face]
-    θ_l = ϑ_l[1]
-    θ_i = θ_i[1]
-    T = T[1]
     @unpack ν = soil.soil_param_set
-    hm = soil.hydrology_model.hydraulic_model
+    hm = component.hydraulic_model
     @unpack θr = hm
-    S = effective_saturation(θ_l; ν = ν, θr = θr)
-    K = hydraulic_conductivity(hm, S)
+
+
+    θ_i = θ_i[1]
+    ϑ_l = ϑ_l[1]
+    ν_eff = ν .- θ_i
+    θ_l = volumetric_liquid_fraction(ϑ_l, ν_eff)
+    T = T[1]
+    f_i = θ_i ./ (θ_l .+ θ_i)
+
+    impedance_f = impedance_factor(component.impedance_factor, f_i)
+    viscosity_f = viscosity_factor(component.viscosity_factor, T)
+    S = effective_saturation(ν, ϑ_l, θr)
+    K = hydraulic_conductivity(hm, S, viscosity_f, impedance_f)
+
     flux = -K # = -K∇h when ∇h = 1. ∇h = 1 -> θ_c = θ_f at the bottom, so use K(θ_c).
     return flux
 
@@ -316,14 +327,21 @@ function vertical_flux(
     face::Symbol,
 )
     @unpack ϑ_l, θ_i, T = Y_cf # [center, face]
-    θ_l = ϑ_l
-
     @unpack ν, S_s = soil.soil_param_set
-    hm = soil.hydrology_model.hydraulic_model
+    hm = component.hydraulic_model
     @unpack θr = hm
-    S = effective_saturation.(θ_l; ν = ν, θr = θr)
-    K = hydraulic_conductivity.(Ref(hm), S)
-    ψ = pressure_head.(Ref(hm), S; ν = ν, S_s = S_s)
+
+    ν_eff = ν .- θ_i
+    θ_l = volumetric_liquid_fraction.(ϑ_l, ν_eff)
+
+    f_i = θ_i ./ (θ_l .+ θ_i)
+    impedance_f = impedance_factor.(Ref(component.impedance_factor), f_i)
+    viscosity_f = viscosity_factor.(Ref(component.viscosity_factor), T)
+    S = effective_saturation.(ν, ϑ_l, θr)
+    K = hydraulic_conductivity.(Ref(hm), S, viscosity_f, impedance_f)
+
+    ψ = pressure_head.(Ref(hm), ϑ_l, ν_eff, S_s)
+
     flux = -K[2] * (ψ[2] - ψ[1] + dz) / dz
     if face == :bottom # at the bottom
         flux *= -1
@@ -358,7 +376,9 @@ function vertical_flux(
     param_set = soil.earth_param_set
     κ_dry = k_dry(param_set, soil.soil_param_set)
 
-    θ_l = ϑ_l
+    ν_eff = ν .- θ_i
+    θ_l = volumetric_liquid_fraction.(ϑ_l, ν_eff)
+
     S_r = relative_saturation.(θ_l, θ_i, ν)
     kersten = kersten_number.(θ_i, S_r, Ref(soil.soil_param_set))
     κ_sat =

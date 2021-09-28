@@ -27,9 +27,10 @@ make_rhs
 ```@docs
 VerticalFlux
 NoBC
+FreeDrainage
+Dirichlet
 SoilDomainBC
 SoilComponentBC
-compute_vertical_flux
 ```
 
 ## Initial Conditions
