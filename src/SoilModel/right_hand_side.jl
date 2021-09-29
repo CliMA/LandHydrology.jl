@@ -5,7 +5,7 @@ export make_rhs
 Returns the `z` coordinates of the space passed as an argument.
 """
 coordinates(cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field =
-    Fields.coordinate_field(cs)
+    getproperty(Fields.coordinate_field(cs), :z)
 
 
 """
@@ -63,13 +63,16 @@ function make_rhs!(
         #update the state Y with prescribed values at the current time
         ϑ_l .= hydrology.ϑ_l_profile.(zc, t)
         θ_i .= hydrology.θ_i_profile.(zc, t)
-        θ_l = ϑ_l # eventually have a conversion to liquid water content
+        @unpack ν, ρc_ds = model.soil_param_set
+        ν_eff = ν .- θ_i
+        θ_l = volumetric_liquid_fraction.(ϑ_l, ν_eff)
+
         T = energy.T_profile.(zc, t)
         ρc_s =
             volumetric_heat_capacity.(
                 θ_l,
                 θ_i,
-                model.soil_param_set.ρc_ds,
+                ρc_ds,
                 Ref(model.earth_param_set),
             )
         ρe_int .=
@@ -105,11 +108,19 @@ function make_rhs!(
         θ_i = Y.θ_i
         ρe_int = Y.ρe_int
 
+        sp = model.soil_param_set
+        param_set = model.earth_param_set
+        @unpack ν, S_s, ρc_ds = sp
+        hm = hydrology.hydraulic_model
+        @unpack θr = hm
+
+
         cspace = axes(ϑ_l)
         zc = coordinates(cspace)
         FT = eltype(zc)
         # Evaluate T at the current time, update ρe_int
-        θ_l = ϑ_l
+        ν_eff = ν .- θ_i
+        θ_l = volumetric_liquid_fraction.(ϑ_l, ν_eff)
         T = energy.T_profile.(zc, t)
         ρc_s =
             volumetric_heat_capacity.(
@@ -143,16 +154,15 @@ function make_rhs!(
             )...,
         )
 
-        sp = model.soil_param_set
-        param_set = model.earth_param_set
-        @unpack ν, S_s, ρc_ds = sp
-        hm = hydrology.hydraulic_model
-        @unpack θr = hm
-
         # Compute hydraulic head, conductivity
-        S = effective_saturation.(θ_l; ν = ν, θr = θr)
-        K = hydraulic_conductivity.(Ref(hm), S)
-        ψ = pressure_head.(Ref(hm), S; ν = ν, S_s = S_s)
+        f_i = θ_i ./ (θ_l .+ θ_i)
+        viscosity_f = viscosity_factor.(Ref(hydrology.viscosity_factor), T)
+        impedance_f = impedance_factor.(Ref(hydrology.impedance_factor), f_i)
+
+        S = effective_saturation.(ν, ϑ_l, θr)
+        K = hydraulic_conductivity.(Ref(hm), S, viscosity_f, impedance_f)
+
+        ψ = pressure_head.(Ref(hm), ϑ_l, ν_eff, S_s)
 
         h = ψ .+ zc
 
@@ -224,7 +234,9 @@ function make_rhs!(
         param_set = model.earth_param_set
         @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
         # Compute center values of everything
-        θ_l = ϑ_l
+        ν_eff = ν .- θ_i
+        θ_l = volumetric_liquid_fraction.(ϑ_l, ν_eff)
+
         ρc_s = volumetric_heat_capacity.(θ_l, θ_i, ρc_ds, Ref(param_set))
         T = temperature_from_ρe_int.(ρe_int, θ_i, ρc_s, Ref(param_set))
         κ_dry = k_dry(param_set, sp)
@@ -301,7 +313,8 @@ function make_rhs!(
         @unpack ν, S_s, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
 
         # Compute center values of everything
-        θ_l = ϑ_l
+        ν_eff = ν .- θ_i
+        θ_l = volumetric_liquid_fraction.(ϑ_l, ν_eff)
         ρc_s = volumetric_heat_capacity.(θ_l, θ_i, ρc_ds, Ref(param_set))
         T = temperature_from_ρe_int.(ρe_int, θ_i, ρc_s, Ref(param_set))
         κ_dry = k_dry(param_set, sp)
@@ -317,9 +330,12 @@ function make_rhs!(
         κ = thermal_conductivity.(κ_dry, kersten, κ_sat)
         ρe_int_l = volumetric_internal_energy_liq.(T, Ref(param_set))
 
-        S = effective_saturation.(θ_l; ν = ν, θr = θr)
-        K = hydraulic_conductivity.(Ref(hm), S)
-        ψ = pressure_head.(Ref(hm), S; ν = ν, S_s = S_s)
+        f_i = θ_i ./ (θ_l .+ θ_i)
+        viscosity_f = viscosity_factor.(Ref(hydrology.viscosity_factor), T)
+        impedance_f = impedance_factor.(Ref(hydrology.impedance_factor), f_i)
+        S = effective_saturation.(ν, ϑ_l, θr)
+        K = hydraulic_conductivity.(Ref(hm), S, viscosity_f, impedance_f)
+        ψ = pressure_head.(Ref(hm), ϑ_l, ν_eff, S_s)
         h = ψ .+ zc
 
         # rhs operators
