@@ -32,8 +32,10 @@ whether additional sources are included.
 """
 function make_rhs(model::SoilModel)
     rhs_soil! = make_rhs!(model.energy_model, model.hydrology_model, model)
+    source_soil! = make_source(model.source, model.energy_model, model.hydrology_model, model)
     function rhs!(dY, Y, p, t)
         rhs_soil!(dY, Y, p, t)
+        source_soil!(dY,Y,p,t)
         return dY
     end
     return rhs!
@@ -360,8 +362,10 @@ function make_rhs!(
             ),
         )
 
-        @. dϑ_l = -divf2c_water(-interpc2f(K) * gradc2f_water(h)) #Richards equation
-        dθ_i = zero_field(FT, cspace)
+        ∑sources = sources(energy, hydrology, model, Y, nothing)
+        
+        @. dϑ_l = -divf2c_water(-interpc2f(K) * gradc2f_water(h)) + ∑sources.ϑ_l#Richards equation
+        dθ_i = zero_field(FT, cspace)+ ∑sources.θ_i
 
         @. dρe_int =
             -divf2c_heat(
