@@ -77,7 +77,7 @@
             hydraulic_model = hydraulics_model,
         ),
         boundary_conditions = bc,
-        source = PhaseChange{FT}(Δz = Δz),
+        #sources = (PhaseChange{FT}(Δz = Δz),),
         soil_param_set = msp,
         earth_param_set = param_set,
     )

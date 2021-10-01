@@ -1,6 +1,12 @@
 export VerticalFlux,
-    Dirichlet, FreeDrainage, SoilDomainBC, SoilComponentBC, NoBC
+    Dirichlet, FreeDrainage, SoilDomainBC, SoilComponentBC, NoBC, ConductiveSurface
 abstract type AbstractBC end
+
+
+struct ConductiveSurface{f <: AbstractFloat} <:AbstractBC
+    κ::f
+    T::f
+end
 
 """
     NoBC <: AbstractBC
@@ -386,6 +392,36 @@ function vertical_flux(
     κ = thermal_conductivity.(κ_dry, kersten, κ_sat) # at face
 
     flux = -κ[2] * (T[2] - T[1]) / dz
+    if face == :bottom # at the bottom
+        flux *= -1
+    end
+
+    return flux
+end
+
+"""
+    function vertical_flux(
+        bc::ConductiveSurface,
+        component::SoilEnergyModel,
+        Y_cf::NamedTuple,
+        soil::SoilModel,
+        dz::AbstractFloat,
+        face::Symbol,
+    )
+
+Computes the energy flux assuming a Dirichlet condtion
+on `T` at the boundary.
+"""
+function vertical_flux(
+    bc::ConductiveSurface,
+    component::SoilEnergyModel,
+    Y_cf::NamedTuple,
+    soil::SoilModel,
+    dz::AbstractFloat,
+    face::Symbol,
+)
+    @unpack T = Y_cf # [center, face]
+    flux = -bc.κ * (bc.T - T[1]) / dz
     if face == :bottom # at the bottom
         flux *= -1
     end

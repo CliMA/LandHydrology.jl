@@ -93,11 +93,10 @@ The model type for the soil model.
 $(DocStringExtensions.FIELDS)
 """
 Base.@kwdef struct SoilModel{
-    dm <: AbstractVerticalDomain{FT},
+    dm,
     em <: AbstractSoilComponentModel,
     hm <: AbstractSoilComponentModel,
     bc,
-    s <: AbstractLandSource,
     A,
     B,
 } <: AbstractModel
@@ -109,7 +108,7 @@ Base.@kwdef struct SoilModel{
     "Boundary conditions tuple"
     boundary_conditions::bc
     "Tuple of sources eventually"
-    source::s = NoSource()
+    sources::AbstractLandSource = NoSource()
     "Soil parameters"
     soil_param_set::A
     "Earth parameter set"

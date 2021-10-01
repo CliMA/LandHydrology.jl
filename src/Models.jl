@@ -1,5 +1,5 @@
 module Models
-export AbstractModel, AbstractLandSource
+export AbstractModel, AbstractLandSource, NoSource
 """
     abstract type AbstractModel
 
@@ -18,7 +18,7 @@ An abstract type for source terms in the land model.
 Source terms specifically refer to terms in PDEs that do not involve derivatives
 of any kind. 
 """
-abstract type AbstractLandSource{FT<:AbstractFloat} end
-
+abstract type AbstractLandSource end
+struct NoSource <: AbstractLandSource end
 
 end

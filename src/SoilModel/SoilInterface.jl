@@ -6,7 +6,7 @@ using DocStringExtensions
 using UnPack
 
 using LandHydrology.Domains: AbstractVerticalDomain, make_function_space, Column
-using LandHydrology.Models: AbstractModel, AbstractLandSource
+using LandHydrology.Models: AbstractModel, AbstractLandSource, NoSource
 include("SoilWaterParameterizations.jl")
 using .SoilWaterParameterizations
 include("SoilHeatParameterizations.jl")
