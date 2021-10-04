@@ -1,5 +1,5 @@
 #model.sources will be a tuple eventually?
-export PhaseChange
+export PhaseChange, add_source
 
 function θ_star(T, θ_l, θ_i, ν, hm, Tfreeze, g, LH_f0, ρice,ρliq)
     θ_m = min(ρice* θ_i / ρliq + θ_l, ν)
@@ -10,7 +10,7 @@ function θ_star(T, θ_l, θ_i, ν, hm, Tfreeze, g, LH_f0, ρice,ρliq)
     if T < Tfreeze
         θ_s = θr + (ν - θr) * inverse_matric_potential(hm, ψ0+ψT)
     else
-        θ_s = θ_l
+        θ_s = θ_m
     end
     return θ_s
 end
@@ -86,22 +86,13 @@ function add_source(source::PhaseChange{FT}, model::SoilModel) where {FT}
         
         Δz = source.Δz
         γ_LTE = source.γ_LTE
-        τLTE = ρc_s .* Δz^2 ./ κ .*γ_LTE
+        τLTE = (ρc_s .* Δz^2 ./ κ) .*γ_LTE
         freeze_thaw =
             FT(1) ./ τLTE .* 
             _ρliq .*
             (θ_l .- θ_s) #*
-
-        println(t)
-        println(θ_s)
-        println(θ_i)
-        println(θ_l)
-        println(T)
-        println(freeze_thaw)
-
-        dϑ_l .= dϑ_l .- freeze_thaw ./ _ρliq
-        dθ_i .= dθ_i .+ freeze_thaw ./ _ρice
-        return dY
+        @. dϑ_l += - freeze_thaw / _ρliq
+        @. dθ_i += freeze_thaw / _ρice
     end
     return source!
 end

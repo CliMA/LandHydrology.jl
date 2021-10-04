@@ -409,8 +409,8 @@ end
         face::Symbol,
     )
 
-Computes the energy flux assuming a Dirichlet condtion
-on `T` at the boundary.
+Computes the energy flux assuming a ConductiveSurface BC
+for flux at the boundary.
 """
 function vertical_flux(
     bc::ConductiveSurface,
@@ -421,7 +421,7 @@ function vertical_flux(
     face::Symbol,
 )
     @unpack T = Y_cf # [center, face]
-    flux = -bc.κ * (bc.T - T[1]) / dz
+    flux = -bc.κ * (bc.T - T[1])
     if face == :bottom # at the bottom
         flux *= -1
     end

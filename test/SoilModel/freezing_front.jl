@@ -16,6 +16,7 @@ using LandHydrology.SoilInterface
 using LandHydrology.SoilInterface.SoilWaterParameterizations
 using LandHydrology.SoilInterface.SoilHeatParameterizations
 
+using Plots
 using ArtifactWrappers
 using DelimitedFiles
 FT = Float64
@@ -27,6 +28,7 @@ vg_α = FT(1.11) # inverse meters
 θ_r = FT(0.05)
 ν_ss_quartz = FT(0.7)
 ν_ss_om = FT(0.3)
+ν_ss_minerals = FT(0.0)
 ν_ss_gravel = FT(0.0)
 
 κ_quartz = FT(7.7)
@@ -63,9 +65,9 @@ msp = SoilParams{FT}(
 
 #Simulation and domain info
 t0 = FT(0)
-tf = FT(3600)#*50)
-dt = FT(1)
-n = 10
+tf = FT(3600*50)
+dt = FT(3)
+n = 20
 
 zmax = FT(0)
 zmin = FT(-0.2)
@@ -96,9 +98,11 @@ soil_model = SoilModel(
     energy_model = SoilEnergyModel(),
     hydrology_model = SoilHydrologyModel{FT}(
         hydraulic_model = hydraulics_model,
+        viscosity_factor = TemperatureDependentViscosity{FT}(),
+        impedance_factor = IceImpedance{FT}(),
     ),
     boundary_conditions = bc,
-    sources = PhaseChange{FT}(Δz = Δz, γ_LTE = 10.0),
+    sources = PhaseChange{FT}(Δz = Δz),
     soil_param_set = msp,
     earth_param_set = param_set,
 )
@@ -130,12 +134,8 @@ sol = solve(
 
 space_c, _ = make_function_space(domain)
 zc = Fields.coordinate_field(space_c)
-z = parent(zc)
-vlf = parent(sol.u[end].ϑ_l)
-ρeint = parent(sol.u[end].ρe_int)
-ρc_s = volumetric_heat_capacity.(vlf, 0.0, ρc_ds, Ref(param_set))
-#=
-temp = temperature_from_ρe_int.(ρeint, 0.0, ρc_s, Ref(param_set))
+z = parent(zc)[:]
+
 dataset = ArtifactWrapper(
     @__DIR__,
     isempty(get(ENV, "CI", "")),
@@ -157,20 +157,27 @@ mask_50h = hours .== 50;
 
 plot_12h =
     scatter(vwc[mask_12h], -depth[mask_12h], label = "", color = "purple")
+vlf = parent(sol.u[13].ϑ_l)[:]
+vif = parent(sol.u[13].θ_i)[:]
+vwf = vif .+ vlf
 plot!(
-    dons_arr[13]["soil.water.θ_i"] .+ dons_arr[13]["soil.water.ϑ_l"],
+    vwf,
     z,
     label = "",
     lc = :green,
     lw = 2,
 )
-plot!(
-    if_dons_arr[13]["soil.water.θ_i"] .+ if_dons_arr[13]["soil.water.ϑ_l"],
-    z,
-    label = "",
-    lc = :orange,
-    lw = 2,
-)
+#vlf = parent(imp_sol.u[13].ϑ_l)[:]
+#vif = parent(imp_sol.u[13].θ_i)[:]
+#vwf = vif .+ vlf
+#plot!(
+#    vwf,
+#    z,
+#    label = "",
+#    lc = :blue,
+#    lw = 2,
+#)
+
 
 plot!(title = "12h")
 plot!(xlim = [0.2, 0.55])
@@ -179,21 +186,26 @@ plot!(ylabel = "Depth (m)");
 
 plot_24h =
     scatter(vwc[mask_24h], -depth[mask_24h], label = "Data", color = "purple")
+vlf = parent(sol.u[25].ϑ_l)[:]
+vif = parent(sol.u[25].θ_i)[:]
+vwf = vif .+ vlf
 plot!(
-    dons_arr[25]["soil.water.θ_i"] .+ dons_arr[25]["soil.water.ϑ_l"],
+    vwf,
     z,
     label = "Sim, Ω = 7",
     lc = :green,
     lw = 2,
 )
-
-plot!(
-    if_dons_arr[25]["soil.water.θ_i"] .+ if_dons_arr[25]["soil.water.ϑ_l"],
-    z,
-    label = "Sim, Ω = 0",
-    lc = :orange,
-    lw = 2,
-)
+#vlf = parent(imp_sol.u[25].ϑ_l)[:]
+#vif = parent(imp_sol.u[25].θ_i)[:]
+#vwf = vif .+ vlf
+#plot!(
+#    vwf,
+#    z,
+#    label = "Ω = 7",
+#    lc = :blue,
+#    lw = 2,
+#)
 
 plot!(title = "24h")
 plot!(legend = :bottomright)
@@ -202,21 +214,26 @@ plot!(xticks = [0.2, 0.3, 0.4, 0.5]);
 
 plot_50h =
     scatter(vwc[mask_50h], -depth[mask_50h], label = "", color = "purple")
+vlf = parent(sol.u[51].ϑ_l)[:]
+vif = parent(sol.u[51].θ_i)[:]
+vwf = vif .+ vlf
 plot!(
-    dons_arr[51]["soil.water.θ_i"] .+ dons_arr[51]["soil.water.ϑ_l"],
+    vwf,
     z,
     label = "",
     lc = :green,
     lw = 2,
 )
-
-plot!(
-    if_dons_arr[51]["soil.water.θ_i"] .+ if_dons_arr[51]["soil.water.ϑ_l"],
-    z,
-    label = "",
-    lc = :orange,
-    lw = 2,
-)
+#vlf = parent(imp_sol.u[51].ϑ_l)[:]
+#vif = parent(imp_sol.u[51].θ_i)[:]
+#vwf = vif .+ vlf
+#plot!(
+#    vwf,
+#    z,
+#    label = "",
+#    lc = :blue,
+#    lw = 2,
+#)
 
 plot!(title = "50h")
 plot!(xlim = [0.2, 0.55])
@@ -224,4 +241,3 @@ plot!(xticks = [0.2, 0.3, 0.4, 0.5]);
 
 plot(plot_12h, plot_24h, plot_50h, layout = (1, 3))
 plot!(xlabel = "θ_l+θ_i")
-=#

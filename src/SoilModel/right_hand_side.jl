@@ -88,7 +88,6 @@ function make_rhs!(
         dϑ_l .= zero_field(FT, cspace)
         dθ_i .= zero_field(FT, cspace)
         dρe_int .= zero_field(FT, cspace)
-        return dY
     end
     return rhs!
 end
@@ -184,7 +183,6 @@ function make_rhs!(
         dθ_i .= zero_field(FT, cspace)
         dρe_int .= zero_field(FT, cspace)
 
-        return dY
     end
     return rhs!
 end
@@ -265,7 +263,6 @@ function make_rhs!(
             ),
         )
         @. dρe_int = -divf2c_heat(-interpc2f(κ) * gradc2f_heat(T))
-        return dY
     end
     return rhs!
 end
@@ -363,14 +360,9 @@ function make_rhs!(
         )
 
         @. dϑ_l = -divf2c_water(-interpc2f(K) * gradc2f_water(h))
-        dθ_i = zero_field(FT, cspace)
+        dθ_i .= zero_field(FT, cspace)
 
-        @. dρe_int =
-            -divf2c_heat(
-                -interpc2f(κ) * gradc2f_heat(T) -
-                interpc2f(ρe_int_l * K) * gradc2f_water(h),
-            )
-        return dY
+        @. dρe_int = -divf2c_heat(-interpc2f(κ) * gradc2f_heat(T) -interpc2f(ρe_int_l * K) * gradc2f_water(h))
     end
     return rhs!
 end
