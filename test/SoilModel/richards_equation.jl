@@ -65,18 +65,14 @@
     )
 
     # initial conditions
-    function initial_conditions(z, t0, model)
-        T = model.energy_model.T_profile(z, t0) # to be consistent with PrescribedT Default. 
+    function initial_conditions(z, model)
         θ_i = 0.0
         θ_l = 0.494
-        ρc_ds = model.soil_param_set.ρc_ds
-        ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, model.earth_param_set)
-        ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, model.earth_param_set)
-        return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
+        return (ϑ_l = θ_l, θ_i = θ_i)
     end
-    Y = set_initial_state(soil_model, initial_conditions, 0.0)
+    Y, Ya = initialize_states(soil_model, initial_conditions, t0)
     soil_rhs! = make_rhs(soil_model)
-    prob = ODEProblem(soil_rhs!, Y, (t0, tf), [])
+    prob = ODEProblem(soil_rhs!, Y, (t0, tf), Ya)
 
     # solve simulation
     sol = solve(
@@ -88,10 +84,8 @@
         progress_message = (dt, u, p, t) -> t,
     )
 
-    space_c, _ = make_function_space(domain)
-    zc = Fields.coordinate_field(space_c)
-    z = parent(zc)
-    ϑ_l = [parent(sol.u[k].ϑ_l) for k in 1:length(sol.u)]
+    z = parent(Ya.zc)
+    ϑ_l = [parent(sol.u[k].soil.ϑ_l) for k in 1:length(sol.u)]
     function expected(z, z_interface)
         ν = 0.495
         S_s = 1e-3
@@ -108,25 +102,6 @@
 
 
     @test sqrt(mean(ϑ_l[end] .- expected.(z, -0.56)) .^ 2.0) < 1e-4
-
-    #= 
-    #Plotting
-    indices = [1, 88, length(sol.t)]
-    labels = ["IC", "6d", "36d"]
-    plot1 = plot(
-        xlim = (0.4, 0.525),
-        ylim = (-10, 0),
-        legend = :outerright,
-        xlabel = "θ(z)",
-        ylabel = "z",
-    )
-    for i in 1:1:length(indices)
-        plot!(ϑ_l[indices[i]], z, label = labels[i], lw = 2)
-    end
-
-    plot!(expected.(z, -0.56), z, lw =1, label = "expected");
-    plot(plot1)
-        =#
 end
 
 
@@ -185,7 +160,7 @@ end
     soil_model = SoilModel(
         domain = domain,
         energy_model = PrescribedTemperatureModel(),
-        hydrology_model = SoilHydrologyModel(
+        hydrology_model = SoilHydrologyModel{FT}(
             hydraulic_model = hydraulics_model,
         ),
         boundary_conditions = bc,
@@ -195,19 +170,14 @@ end
 
     # initial conditions
 
-    function ic(z, t0, model)
-        T = model.energy_model.T_profile(z, t0) # to be consistent with PrescribedT Default. 
+    function ic(z, model)
         θ_i = 0.0
         θ_l = 0.1
-        ρc_ds = model.soil_param_set.ρc_ds
-        ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρc_ds, model.earth_param_set)
-        ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, model.earth_param_set)
-        return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
+        return (ϑ_l = θ_l, θ_i = θ_i)
     end
-
-    Y = set_initial_state(soil_model, ic, t0)
+    Y, Ya = initialize_states(soil_model, ic, t0)
     soil_rhs! = make_rhs(soil_model)
-    prob = ODEProblem(soil_rhs!, Y, (t0, tf), [])
+    prob = ODEProblem(soil_rhs!, Y, (t0, tf), Ya)
 
     # solve simulation
     sol = solve(
@@ -219,10 +189,9 @@ end
         progress_message = (dt, u, p, t) -> t,
     )
 
-    space_c, _ = make_function_space(domain)
-    zc = Fields.coordinate_field(space_c)
-    z = parent(zc)
-    ϑ_l = parent(sol.u[193].ϑ_l)
+
+    z = parent(Ya.zc)
+    ϑ_l = parent(sol.u[193].soil.ϑ_l)
 
 
     bonan_sand_dataset = ArtifactWrapper(

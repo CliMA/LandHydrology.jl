@@ -28,6 +28,7 @@ include("test_domains.jl")
     include("SoilModel/coupled.jl")
     include("SoilModel/richards_equation.jl")
     include("SoilModel/heat_test_interface.jl")
+    include("SoilModel/test_rhs.jl")
     include("SoilModel/test_water_parameterizations.jl")
     include("SoilModel/test_heat_parameterizations.jl")
 end

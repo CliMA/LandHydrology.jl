@@ -1,7 +1,7 @@
 module Models
 export AbstractModel, default_initial_conditions
 """
-    abstract type AbstractModel
+    AbstractModel
 
 An abstract type for models.
 

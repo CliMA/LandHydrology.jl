@@ -6,7 +6,8 @@ export SoilHydrologyModel,
 
 abstract type AbstractSoilComponentModel end
 """
-    SoilEnergyModel
+    SoilEnergyModel <: AbstractSoilComponentModel
+
 The model type to be used when the user wants to simulate
 heat transfer in soil by solving the heat partial differential equation.
 
@@ -16,7 +17,7 @@ $(DocStringExtensions.FIELDS)
 struct SoilEnergyModel <: AbstractSoilComponentModel end
 
 """
-    SoilHydrologyModel
+    SoilHydrologyModel <: AbstractSoilComponentModel
 
 The model type to be used when the user wants to simulate
 the flow of water in soil by solving Richards equation.
@@ -27,14 +28,14 @@ $(DocStringExtensions.FIELDS)
 Base.@kwdef struct SoilHydrologyModel{FT <: AbstractFloat} <:
                    AbstractSoilComponentModel
     hydraulic_model::vanGenuchten{FT} = vanGenuchten{FT}()
+    viscosity_factor::AbstractConductivityFactor{FT} = NoEffect{FT}()
+    impedance_factor::AbstractConductivityFactor{FT} = NoEffect{FT}()
 end
 
 
 """
-    Base.@kwdef struct PrescribedTemperatureModel <: AbstractSoilComponentModel
-        "Profile of (z,t) for temperature"
-         T_profile::Function = (z,t) -> eltype(z)(288)
-    end
+    PrescribedTemperatureModel <: AbstractSoilComponentModel
+
 The model type to be used when the user does not wish to solve
 the heat partial differential equation, but instead wishes to prescibe
 a temperature profile in the soil.
@@ -55,12 +56,8 @@ end
 
 
 """
-    Base.@kwdef struct PrescribedHydrologyModel <: AbstractSoilComponentModel
-        "Profile of (z,t) for ϑ_l"
-        ϑ_l_profile::Function = (z,t) -> eltype(z)(0.0)
-        "Profile of (z,t) for θ_i"
-        θ_i_profile::::Function = (z,t) -> eltype(z)(0.0)
-    end
+    PrescribedHydrologyModel <: AbstractSoilComponentModel
+
 The model type to be used when the user does not wish to solve
 the Richards equation, but instead wishes to prescibe
 a water content profile in the soil.
@@ -112,8 +109,6 @@ Base.@kwdef struct SoilModel{
     earth_param_set::B
     "name"
     name::Symbol = :soil
-    "variables"
-    variables::Tuple = (:ϑ_l, :θ_i, :ρe_int)
 end
 
 

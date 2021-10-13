@@ -1,4 +1,20 @@
-export make_rhs
+export make_rhs, make_update_aux, coordinates
+
+"""
+    coordinates(cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field
+Returns the `z` coordinates of the space passed as an argument.
+"""
+coordinates(cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field =
+    getproperty(Fields.coordinate_field(cs), :z)
+
+
+"""
+    zero_field(ft, cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field
+Wrapper function returning a field on the space `cs`,
+with all values = 0, of type `ft`.
+"""
+zero_field(ft, cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field =
+    Fields.zeros(ft, cs)
 
 """
     make_rhs(model::SoilModel)
@@ -15,122 +31,139 @@ components of the model (the energy and hydrology models), as well as
 whether additional sources are included.
 """
 function make_rhs(model::SoilModel)
-    rhs_soil! = make_rhs!(model.energy_model, model.hydrology_model, model)
-    function rhs!(dY, Y, p, t)
-        rhs_soil!(dY, Y, p, t)
+    update_aux_en! = make_update_aux(model.energy_model)
+    update_aux_hydr! = make_update_aux(model.hydrology_model)
+    rhs_soil! = make_rhs(model.energy_model, model.hydrology_model, model)
+    function rhs!(dY, Y, Ya, t)
+        update_aux_en!(Ya, t)
+        update_aux_hydr!(Ya, t)
+        rhs_soil!(dY, Y, Ya, t)
         return dY
     end
     return rhs!
 end
 
 """
-    make_rhs!(energy::PrescribedTemperatureModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
+    make_update_aux(
+        energy::PrescribedTemperatureModel,
+    )
+
+Returns a function which updates the auxiliary state vector in place by 
+modifying the temperature field to the prescribed current value.
+"""
+function make_update_aux(energy::PrescribedTemperatureModel)
+    function update_aux!(Ya, t)
+        T = Ya.soil.T
+        zc = Ya.zc
+        T .= energy.T_profile.(zc, t)
+        return Ya
+    end
+    return update_aux!
+end
 
 """
-function make_rhs!(
+    make_update_aux(
+        hydrology::PrescribedHydrologyModel
+    )
+
+Returns a function which updates the auxiliary state vector in place by 
+modifying the water content fields to the prescribed current value.
+"""
+function make_update_aux(hydrology::PrescribedHydrologyModel)
+    function update_aux!(Ya, t)
+        zc = Ya.zc
+        @unpack ϑ_l, θ_i = Ya.soil
+        ϑ_l .= hydrology.ϑ_l_profile.(zc, t)
+        θ_i .= hydrology.θ_i_profile.(zc, t)
+        return Ya
+    end
+    return update_aux!
+end
+
+"""
+    make_update_aux(
+        mode::AbstractSoilComponentModel
+    )
+
+Returns a function which does not update the auxilary state vector.
+This is appropriate for models which do not add auxiliary state variables.
+"""
+function make_update_aux(model::AbstractSoilComponentModel)
+    function update_aux!(Ya, t)
+        nothing
+    end
+    return update_aux!
+end
+
+
+"""
+    make_rhs(energy::PrescribedTemperatureModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
+
+"""
+function make_rhs(
     energy::PrescribedTemperatureModel,
     hydrology::PrescribedHydrologyModel,
     model::SoilModel,
 )
-    function rhs!(dY, Y, _, t)
-        dϑ_l = dY.ϑ_l
-        dθ_i = dY.θ_i
-        dρe_int = dY.ρe_int
-        ϑ_l = Y.ϑ_l
-        θ_i = Y.θ_i
-        ρe_int = Y.ρe_int
-
-        #update the state Y with prescribed values at the current time
-        ϑ_l = hydrology.ϑ_l_profile.(zc, t)
-        θ_i = hydrology.θ_i_profile.(zc, t)
-        θ_l = ϑ_l # eventually have a conversion to liquid water content
-        T = energy.T_profile.(zc, t)
-        ρc_s =
-            volumetric_heat_capacity.(
-                θ_l,
-                θ_i,
-                model.soil_param_set.ρc_ds,
-                Ref(model.earth_param_set),
-            )
-        ρe_int =
-            volumetric_internal_energy.(
-                θ_i,
-                ρc_s,
-                T,
-                Ref(model.earth_param_set),
-            )
-
-        # RHS is zero
-        space = axes(ϑ_l)
-        zc = Fields.coordinate_field(cspace)
-        FT = eltype(zc)
-        dϑ_l = Fields.zeros(FT, cspace)
-        dθ_i = Fields.zeros(FT, cspace)
-        dρe_int = Fields.zeros(FT, cspace)
-        return dY
+    function rhs!(dY, Y, Ya, t)
+        nothing
     end
     return rhs!
 end
 
 """
-    make_rhs!(energy::PrescribedTemperatureModel, hydrology::SoilHydrologyModel, model::SoilModel)
+    make_rhs(energy::PrescribedTemperatureModel, hydrology::SoilHydrologyModel, model::SoilModel)
 
 """
-function make_rhs!(
+function make_rhs(
     energy::PrescribedTemperatureModel,
-    hydrology::SoilHydrologyModel,
+    hydrology::SoilHydrologyModel{FT},
     model::SoilModel,
-)
-    function rhs!(dY, Y, _, t)
-        dϑ_l = dY.ϑ_l
-        dθ_i = dY.θ_i
-        dρe_int = dY.ρe_int
-        ϑ_l = Y.ϑ_l
-        θ_i = Y.θ_i
-        ρe_int = Y.ρe_int
+) where {FT}
+    function rhs!(dY, Y, Ya, t)
+        dϑ_l = dY.soil.ϑ_l
+        dθ_i = dY.soil.θ_i
+        ϑ_l = Y.soil.ϑ_l
+        θ_i = Y.soil.θ_i
+        T = Ya.soil.T
+        zc = Ya.zc
 
         cspace = axes(ϑ_l)
-        zc = Fields.coordinate_field(cspace)
-        FT = eltype(zc)
-
+        # construct extended state vector
+        X = Fields.FieldVector(ϑ_l = ϑ_l, θ_i = θ_i, T = T) # blend of state and prescribed variables needed at boundary
         # boundary conditions and parameters
-        faces = model.domain.x3boundary
+        faces = model.domain.boundary_tags
         bcs = getproperty.(Ref(model.boundary_conditions), faces)
         fluxes = (;
             zip(
                 faces,
-                return_fluxes.(Ref(Y), bcs, faces, Ref(model), Ref(cspace), t),
+                boundary_fluxes.(
+                    Ref(X),
+                    bcs,
+                    faces,
+                    Ref(model),
+                    Ref(cspace),
+                    t,
+                ),
             )...,
         )
 
         sp = model.soil_param_set
         param_set = model.earth_param_set
-        @unpack ν, S_s, ρc_ds = sp
         hm = hydrology.hydraulic_model
         @unpack θr = hm
-        # Evaluate T at the current time, update ρe_int
-        θ_l = ϑ_l
-        T = energy.T_profile.(zc, t)
-        ρc_s =
-            volumetric_heat_capacity.(
-                θ_l,
-                θ_i,
-                model.soil_param_set.ρc_ds,
-                Ref(model.earth_param_set),
-            )
-        ρe_int =
-            volumetric_internal_energy.(
-                θ_i,
-                ρc_s,
-                T,
-                Ref(model.earth_param_set),
-            )
-
+        @unpack ν, S_s = sp
+        ν_eff = ν .- θ_i
+        θ_l = volumetric_liquid_fraction.(ϑ_l, ν_eff)
         # Compute hydraulic head, conductivity
-        S = effective_saturation.(θ_l; ν = ν, θr = θr)
-        K = hydraulic_conductivity.(Ref(hm), S)
-        ψ = pressure_head.(Ref(hm), S; ν = ν, S_s = S_s)
+        f_i = θ_i ./ (θ_l .+ θ_i)
+        viscosity_f = viscosity_factor.(Ref(hydrology.viscosity_factor), T)
+        impedance_f = impedance_factor.(Ref(hydrology.impedance_factor), f_i)
 
+        S = effective_saturation.(ν, ϑ_l, θr)
+        K = hydraulic_conductivity.(Ref(hm), S, viscosity_f, impedance_f)
+
+        ψ = pressure_head.(Ref(hm), ϑ_l, ν_eff, S_s)
         h = ψ .+ zc
 
         # right hand side operators
@@ -146,57 +179,36 @@ function make_rhs!(
         )
 
         @. dϑ_l = -(divf2c_water(-interpc2f(K) * gradc2f_water(h))) #Richards equation
-        dθ_i = Fields.zeros(FT, cspace)
-        dρe_int = Fields.zeros(FT, cspace)
-
+        dθ_i .= zero_field(FT, cspace)
         return dY
     end
     return rhs!
 end
 
 """
-    make_rhs!(energy::SoilEnergyModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
+    make_rhs(energy::SoilEnergyModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
 
 """
-function make_rhs!(
+function make_rhs(
     energy::SoilEnergyModel,
     hydrology::PrescribedHydrologyModel,
     model::SoilModel,
 )
-    function rhs!(dY, Y, _, t)
-        dϑ_l = dY.ϑ_l
-        dθ_i = dY.θ_i
-        dρe_int = dY.ρe_int
-        ϑ_l = Y.ϑ_l
-        θ_i = Y.θ_i
-        ρe_int = Y.ρe_int
+    function rhs!(dY, Y, Ya, t)
+        dρe_int = dY.soil.ρe_int
+        ρe_int = Y.soil.ρe_int
+        ϑ_l = Ya.soil.ϑ_l
+        θ_i = Ya.soil.θ_i
 
-        cspace = axes(ϑ_l)
-        zc = Fields.coordinate_field(cspace)
-        FT = eltype(zc)
-
-        # boundary conditions and parameters
-        faces = model.domain.x3boundary
-        bcs = getproperty.(Ref(model.boundary_conditions), faces)
-        fluxes = (;
-            zip(
-                faces,
-                return_fluxes.(Ref(Y), bcs, faces, Ref(model), Ref(cspace), t),
-            )...,
-        )
-
+        # Parameters
         sp = model.soil_param_set
         param_set = model.earth_param_set
         @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
 
-        # update water content based on prescribed profiles, set RHS to zero.
-        ϑ_l = hydrology.ϑ_l_profile.(zc, t)
-        θ_i = hydrology.θ_i_profile.(zc, t)
-        dϑ_l = Fields.zeros(FT, cspace)
-        dθ_i = Fields.zeros(FT, cspace)
-
         # Compute center values of everything
-        θ_l = ϑ_l
+        ν_eff = ν .- θ_i
+        θ_l = volumetric_liquid_fraction.(ϑ_l, ν_eff)
+
         ρc_s = volumetric_heat_capacity.(θ_l, θ_i, ρc_ds, Ref(param_set))
         T = temperature_from_ρe_int.(ρe_int, θ_i, ρc_s, Ref(param_set))
         κ_dry = k_dry(param_set, sp)
@@ -210,6 +222,28 @@ function make_rhs!(
                 κ_sat_frozen,
             )
         κ = thermal_conductivity.(κ_dry, kersten, κ_sat)
+
+        # construct extended state vector
+        X = Fields.FieldVector(ϑ_l = ϑ_l, θ_i = θ_i, T = T) # blend of state and prescribed variables needed at boundary
+
+        # boundary conditions
+        cspace = axes(θ_i)
+        faces = model.domain.boundary_tags
+        bcs = getproperty.(Ref(model.boundary_conditions), faces)
+        fluxes = (;
+            zip(
+                faces,
+                boundary_fluxes.(
+                    Ref(X),
+                    bcs,
+                    faces,
+                    Ref(model),
+                    Ref(cspace),
+                    t,
+                ),
+            )...,
+        )
+
 
         # rhs operators
         interpc2f = Operators.InterpolateC2F()
@@ -229,36 +263,24 @@ function make_rhs!(
 end
 
 """
-    make_rhs!(energy::SoilEnergyModel, hydrology::SoilHydrologyModel, model::SoilModel)
+    make_rhs(energy::SoilEnergyModel, hydrology::SoilHydrologyModel, model::SoilModel)
 
 """
-function make_rhs!(
+function make_rhs(
     energy::SoilEnergyModel,
-    hydrology::SoilHydrologyModel,
+    hydrology::SoilHydrologyModel{FT},
     model::SoilModel,
-)
-    function rhs!(dY, Y, _, t)
-        dϑ_l = dY.ϑ_l
-        dθ_i = dY.θ_i
-        dρe_int = dY.ρe_int
-        ϑ_l = Y.ϑ_l
-        θ_i = Y.θ_i
-        ρe_int = Y.ρe_int
+) where {FT}
+    function rhs!(dY, Y, Ya, t)
+        dϑ_l = dY.soil.ϑ_l
+        dθ_i = dY.soil.θ_i
+        dρe_int = dY.soil.ρe_int
+        ϑ_l = Y.soil.ϑ_l
+        θ_i = Y.soil.θ_i
+        ρe_int = Y.soil.ρe_int
+        zc = Ya.zc
 
-        cspace = axes(ϑ_l)
-        zc = Fields.coordinate_field(cspace)
-        FT = eltype(zc)
-
-        # boundary conditions and parameters
-        faces = model.domain.x3boundary
-        bcs = getproperty.(Ref(model.boundary_conditions), faces)
-        fluxes = (;
-            zip(
-                faces,
-                return_fluxes.(Ref(Y), bcs, faces, Ref(model), Ref(cspace), t),
-            )...,
-        )
-
+        # parameters
         sp = model.soil_param_set
         param_set = model.earth_param_set
         hm = hydrology.hydraulic_model
@@ -266,7 +288,8 @@ function make_rhs!(
         @unpack ν, S_s, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
 
         # Compute center values of everything
-        θ_l = ϑ_l
+        ν_eff = ν .- θ_i
+        θ_l = volumetric_liquid_fraction.(ϑ_l, ν_eff)
         ρc_s = volumetric_heat_capacity.(θ_l, θ_i, ρc_ds, Ref(param_set))
         T = temperature_from_ρe_int.(ρe_int, θ_i, ρc_s, Ref(param_set))
         κ_dry = k_dry(param_set, sp)
@@ -282,10 +305,33 @@ function make_rhs!(
         κ = thermal_conductivity.(κ_dry, kersten, κ_sat)
         ρe_int_l = volumetric_internal_energy_liq.(T, Ref(param_set))
 
-        S = effective_saturation.(θ_l; ν = ν, θr = θr)
-        K = hydraulic_conductivity.(Ref(hm), S)
-        ψ = pressure_head.(Ref(hm), S; ν = ν, S_s = S_s)
+        f_i = θ_i ./ (θ_l .+ θ_i)
+        viscosity_f = viscosity_factor.(Ref(hydrology.viscosity_factor), T)
+        impedance_f = impedance_factor.(Ref(hydrology.impedance_factor), f_i)
+        S = effective_saturation.(ν, ϑ_l, θr)
+        K = hydraulic_conductivity.(Ref(hm), S, viscosity_f, impedance_f)
+        ψ = pressure_head.(Ref(hm), ϑ_l, ν_eff, S_s)
         h = ψ .+ zc
+
+        # Construct extended state vector
+        X = Fields.FieldVector(ϑ_l = ϑ_l, θ_i = θ_i, T = T) # blend of state and prescribed variables needed at boundary
+        # boundary conditions
+        cspace = axes(θ_i)
+        faces = model.domain.boundary_tags
+        bcs = getproperty.(Ref(model.boundary_conditions), faces)
+        fluxes = (;
+            zip(
+                faces,
+                boundary_fluxes.(
+                    Ref(X),
+                    bcs,
+                    faces,
+                    Ref(model),
+                    Ref(cspace),
+                    t,
+                ),
+            )...,
+        )
 
         # rhs operators
         interpc2f = Operators.InterpolateC2F()
@@ -310,7 +356,7 @@ function make_rhs!(
         )
 
         @. dϑ_l = -divf2c_water(-interpc2f(K) * gradc2f_water(h)) #Richards equation
-        dθ_i = Fields.zeros(FT, cspace)
+        dθ_i = zero_field(FT, cspace)
 
         @. dρe_int =
             -divf2c_heat(

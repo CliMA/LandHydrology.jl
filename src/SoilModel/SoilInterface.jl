@@ -1,5 +1,5 @@
 module SoilInterface
-import ClimaCore: Fields, Operators, Geometry
+import ClimaCore: Fields, Operators, Geometry, Spaces
 using CLIMAParameters
 using CLIMAParameters.Planet: T_0
 using DocStringExtensions
