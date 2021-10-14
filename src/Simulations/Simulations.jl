@@ -21,6 +21,5 @@ include("simulation.jl")
 export Simulation
 export step!
 export run!
-export set!
 
 end # module
