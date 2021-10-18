@@ -123,10 +123,9 @@ at half of porosity.
 """
 function Models.default_initial_conditions(model::SoilModel)
     space_c, _ = make_function_space(model.domain)
-    zc = Fields.coordinate_field(space_c)
-    FT = eltype(zc)
+    FT = Spaces.undertype(space_c)
     T0 = FT(T_0(model.earth_param_set))
-    ϑ_l = Fields.zeros(FT, space_c) .+ eltype(zc)(0.5 * model.soil_param_set.ν)
+    ϑ_l = Fields.zeros(FT, space_c) .+ FT(0.5 * model.soil_param_set.ν)
     θ_i = Fields.zeros(FT, space_c)
     ρe_int = Fields.zeros(FT, space_c)
 
