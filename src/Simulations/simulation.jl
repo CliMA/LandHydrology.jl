@@ -34,7 +34,9 @@ function Simulation(
     Y_init,
     dt,
     tspan,
+    p = nothing,
     callbacks = nothing,
+    kwargs...,
 )
 
     # inital state is either default or set externally 
@@ -48,9 +50,9 @@ function Simulation(
     # we use the DiffEqBase.jl interface
     # to set up and an ODE integrator that handles
     # integration in time and callbacks
-    ode_problem = DiffEqBase.ODEProblem(ode_function, Y_init, tspan)
+    ode_problem = DiffEqBase.ODEProblem(ode_function, Y_init, tspan, p)
     integrator =
-        DiffEqBase.init(ode_problem, method, dt = dt, callback = callbacks)
+        DiffEqBase.init(ode_problem, method; dt = dt, callback = callbacks, kwargs...)
 
     return Simulation(model, integrator, callbacks)
 end

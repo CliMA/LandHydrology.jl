@@ -17,6 +17,7 @@ using LandHydrology.Domains: Column, make_function_space
 using LandHydrology.SoilInterface
 using LandHydrology.SoilInterface.SoilWaterParameterizations
 using LandHydrology.SoilInterface.SoilHeatParameterizations
+using LandHydrology.Simulations
 using Statistics
 using Test
 using ArtifactWrappers

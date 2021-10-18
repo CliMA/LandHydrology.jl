@@ -71,18 +71,22 @@
         return (ϑ_l = θ_l, θ_i = θ_i)
     end
     Y, Ya = initialize_states(soil_model, initial_conditions, t0)
-    soil_rhs! = make_rhs(soil_model)
-    prob = ODEProblem(soil_rhs!, Y, (t0, tf), Ya)
-
-    # solve simulation
-    sol = solve(
-        prob,
+    soil_sim = Simulation(
+        soil_model,
         SSPRK33(),
-        dt = dt,
+        Y_init = Y, 
+        dt = dt, 
+        tspan = (t0, tf), 
+        p = Ya,
         saveat = 60 * dt,
         progress = true,
         progress_message = (dt, u, p, t) -> t,
     )
+
+    # solve simulation
+    @test step!(soil_sim) isa Nothing # either error or integration runs
+    run!(soil_sim)
+    sol = soil_sim.integrator.sol
 
     z = parent(Ya.zc)
     ϑ_l = [parent(sol.u[k].soil.ϑ_l) for k in 1:length(sol.u)]
@@ -176,18 +180,22 @@ end
         return (ϑ_l = θ_l, θ_i = θ_i)
     end
     Y, Ya = initialize_states(soil_model, ic, t0)
-    soil_rhs! = make_rhs(soil_model)
-    prob = ODEProblem(soil_rhs!, Y, (t0, tf), Ya)
-
-    # solve simulation
-    sol = solve(
-        prob,
+    soil_sim = Simulation(
+        soil_model,
         SSPRK33(),
-        dt = dt,
+        Y_init = Y, 
+        dt = dt, 
+        tspan = (t0, tf), 
+        p = Ya,
         saveat = 60 * dt,
         progress = true,
         progress_message = (dt, u, p, t) -> t,
     )
+
+    # solve simulation
+    @test step!(soil_sim) isa Nothing # either error or integration runs
+    run!(soil_sim)
+    sol = soil_sim.integrator.sol
 
 
     z = parent(Ya.zc)
