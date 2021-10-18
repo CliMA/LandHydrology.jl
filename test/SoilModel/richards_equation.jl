@@ -43,8 +43,7 @@
     #Boundary conditions
     top_water_flux = FT(0)
     bottom_water_flux = FT(0)
-    bc = SoilDomainBC(
-        domain;
+    bc = SoilColumnBC(;
         top = SoilComponentBC(hydrology = VerticalFlux(top_water_flux)),
         bottom = SoilComponentBC(hydrology = VerticalFlux(bottom_water_flux)),
     )
@@ -53,7 +52,7 @@
     hydraulics_model =
         vanGenuchten{FT}(n = vg_n, α = vg_α, Ksat = Ksat, θr = θ_r)
 
-    soil_model = SoilModel(
+    soil_model = SoilModel(FT;
         domain = domain,
         energy_model = PrescribedTemperatureModel(),
         hydrology_model = SoilHydrologyModel{FT}(
@@ -149,15 +148,14 @@ end
 
     #Boundary conditions
     top_state = (t) -> eltype(t)(0.267)
-    bc = SoilDomainBC(
-        domain;
+    bc = SoilColumnBC(;
         top = SoilComponentBC(hydrology = Dirichlet(top_state)),
         bottom = SoilComponentBC(hydrology = FreeDrainage()),
     )
     hydraulics_model =
         vanGenuchten{FT}(n = vg_n, α = vg_α, Ksat = Ksat, θr = θ_r)
     # create model
-    soil_model = SoilModel(
+    soil_model = SoilModel(FT;
         domain = domain,
         energy_model = PrescribedTemperatureModel(),
         hydrology_model = SoilHydrologyModel{FT}(

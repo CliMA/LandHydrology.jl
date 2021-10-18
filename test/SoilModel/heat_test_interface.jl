@@ -44,14 +44,13 @@
     ω = FT(2 * pi / tau)
     topbc = Dirichlet(t -> typeof(t)(0.0))
     bottombc = Dirichlet(t -> typeof(t)(A * cos(ω * t)))
-    bc = SoilDomainBC(
-        domain;
+    bc = SoilColumnBC(;
         top = SoilComponentBC(energy = topbc),
         bottom = SoilComponentBC(energy = bottombc),
     )
 
     # create model
-    soil_model = SoilModel(
+    soil_model = SoilModel(FT;
         domain = domain,
         energy_model = SoilEnergyModel(),
         hydrology_model = PrescribedHydrologyModel(),

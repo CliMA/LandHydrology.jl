@@ -9,17 +9,16 @@
     ϑ_lp(z, t) = 10.0 * z * t
     θ_ip(z, t) = 0.0
 
-    soil_model = SoilModel(
-        domain = domain,
-        energy_model = PrescribedTemperatureModel(T_profile = Tp),
-        hydrology_model = PrescribedHydrologyModel(
-            ϑ_l_profile = ϑ_lp,
-            θ_i_profile = θ_ip,
-        ),
-        boundary_conditions = nothing,
-        soil_param_set = nothing,
-        earth_param_set = nothing,
-    )
+    soil_model = SoilModel(FT;
+                           domain = domain,
+                           energy_model = PrescribedTemperatureModel(T_profile = Tp),
+                           hydrology_model = PrescribedHydrologyModel(
+                               ϑ_l_profile = ϑ_lp,
+                               θ_i_profile = θ_ip,
+                           ),
+                           boundary_conditions = SoilColumnBC(),
+                           soil_param_set = nothing,
+                           )
     Ys = Dict()
     Y = Fields.FieldVector(; Ys...)
     t = 0.0

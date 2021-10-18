@@ -12,8 +12,11 @@ using .SoilWaterParameterizations
 include("SoilHeatParameterizations.jl")
 using .SoilHeatParameterizations
 
+include("boundary_types.jl")
 include("parameters.jl")
 include("models.jl")
+include("boundary_methods.jl")
+include("right_hand_side.jl")
 include("initial_conditions.jl")
 
 end

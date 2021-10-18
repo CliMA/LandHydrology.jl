@@ -53,8 +53,7 @@
     #Boundary conditions
     top_flux = FT(0)
     bottom_flux = FT(0)
-    bc = SoilDomainBC(
-        domain;
+    bc = SoilColumnBC(;
         top = SoilComponentBC(
             hydrology = VerticalFlux(top_flux),
             energy = VerticalFlux(top_flux),
@@ -69,7 +68,7 @@
     hydraulics_model =
         vanGenuchten{FT}(n = vg_n, α = vg_α, Ksat = Ksat, θr = θ_r)
 
-    soil_model = SoilModel(
+    soil_model = SoilModel(FT;
         domain = domain,
         energy_model = SoilEnergyModel(),
         hydrology_model = SoilHydrologyModel{FT}(

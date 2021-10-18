@@ -80,21 +80,23 @@ end
 
 
 """
-    SoilModel{FT, domain, em <: AbstractSoilModel, hm <: AbstractSoilModel, bc, A,B}
+    SoilModel{FT, domain, em, hm, bc, A, B,n}
 
-The model type for the soil model.
+The model type for the full soil model, solving for heat and
+water flow in soil.
 
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-Base.@kwdef struct SoilModel{
+struct SoilModel{
     FT,
-    dm <: AbstractVerticalDomain{FT},
-    em <: AbstractSoilComponentModel,
-    hm <: AbstractSoilComponentModel,
+    dm,
+    em,
+    hm,
     bc,
     A,
     B,
+    n,
 } <: AbstractModel
     domain::dm
     "Soil energy model - prescribed or dynamics"
@@ -108,9 +110,18 @@ Base.@kwdef struct SoilModel{
     "Earth parameter set"
     earth_param_set::B
     "name"
-    name::Symbol = :soil
+    name::n
 end
 
-
-include("boundary_conditions.jl")
-include("right_hand_side.jl")
+function SoilModel(::Type{FT};
+                   domain::AbstractVerticalDomain{FT},
+                   energy_model::AbstractSoilComponentModel,
+                   hydrology_model::AbstractSoilComponentModel,
+                   boundary_conditions::SoilColumnBC,
+                   soil_param_set::SP,
+                   earth_param_set::EarthParameterSet = EarthParameterSet(),
+                   name::Symbol = :soil,
+                   ) where {FT, SP}
+    args =  (domain, energy_model, hydrology_model, boundary_conditions, soil_param_set, earth_param_set, name)
+    return SoilModel{FT, typeof.(args)...}(args...)
+end
