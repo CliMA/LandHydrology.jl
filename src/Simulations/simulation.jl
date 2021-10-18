@@ -51,8 +51,13 @@ function Simulation(
     # to set up and an ODE integrator that handles
     # integration in time and callbacks
     ode_problem = DiffEqBase.ODEProblem(ode_function, Y_init, tspan, p)
-    integrator =
-        DiffEqBase.init(ode_problem, method; dt = dt, callback = callbacks, kwargs...)
+    integrator = DiffEqBase.init(
+        ode_problem,
+        method;
+        dt = dt,
+        callback = callbacks,
+        kwargs...,
+    )
 
     return Simulation(model, integrator, callbacks)
 end

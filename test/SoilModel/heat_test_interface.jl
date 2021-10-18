@@ -76,9 +76,9 @@
     soil_sim = Simulation(
         soil_model,
         SSPRK33(),
-        Y_init = Y, 
-        dt = dt, 
-        tspan = (t0, tf), 
+        Y_init = Y,
+        dt = dt,
+        tspan = (t0, tf),
         p = Ya,
         saveat = 60 * dt,
         progress = true,
@@ -86,7 +86,7 @@
     )
 
     # solve simulation
-    @test step!(soil_sim, ) isa Nothing # either error or integration runs
+    @test step!(soil_sim) isa Nothing # either error or integration runs
     run!(soil_sim)
     sol = soil_sim.integrator.sol
     t = sol.t
