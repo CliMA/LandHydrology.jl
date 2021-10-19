@@ -163,7 +163,7 @@ struct vanGenuchten{FT} <: AbstractHydraulicsModel{FT}
         n::FT = FT(1.43),
         α::FT = FT(2.6),
         Ksat::FT = FT(1e-6),
-        θr = FT(0.0),
+        θr::FT = FT(0.0),
     ) where {FT}
         new(n, α, FT(1) - FT(1) / FT(n), θr, Ksat)
     end
@@ -211,8 +211,8 @@ hydraulic functions that take it as an argument will return
 imaginary numbers, resulting in domain errors.
 """
 function effective_saturation(porosity::FT, ϑ_l::FT, θr::FT) where {FT}
-    ϑ_l < θr && error("Effective saturation is negative")
-    S_l = (ϑ_l - θr) / (porosity - θr)
+    ϑ_l_safe = max(ϑ_l, θr + eps(FT))
+    S_l = (ϑ_l_safe - θr) / (porosity - θr)
     return S_l
 end
 
@@ -232,8 +232,7 @@ function pressure_head(
     ν_eff::FT,
     S_s::FT,
 ) where {FT}
-    @unpack θr = hm
-    S_l_eff = effective_saturation(ν_eff, ϑ_l, θr)
+    S_l_eff = effective_saturation(ν_eff, ϑ_l, hm.θr)
     if S_l_eff < FT(1.0)
         ψ = matric_potential(hm, S_l_eff)
     else

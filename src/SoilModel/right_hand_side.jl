@@ -356,7 +356,7 @@ function make_rhs(
         )
 
         @. dϑ_l = -divf2c_water(-interpc2f(K) * gradc2f_water(h)) #Richards equation
-        dθ_i = zero_field(FT, cspace)
+        dθ_i .= zero_field(FT, cspace)
 
         @. dρe_int =
             -divf2c_heat(

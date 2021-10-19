@@ -12,7 +12,6 @@
     S = effective_saturation.(ν, θ, θr)
     @test S ≈ [0.5, 1.0, 1.5]
     @test eltype(S) == FT
-    @test_throws Exception effective_saturation(0.5, -1.0, 0.0)
 
     # Matric Potential and inverse
     va = -((S[1]^(-FT(1) / m) - FT(1)) * α^(-n))^(FT(1) / n)

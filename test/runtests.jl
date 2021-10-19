@@ -1,8 +1,4 @@
 using ClimaCore: Fields
-using CLIMAParameters
-struct EarthParameterSet <: AbstractEarthParameterSet end
-const param_set = EarthParameterSet()
-
 using UnPack
 using OrdinaryDiffEq:
     ODEProblem,
@@ -11,6 +7,8 @@ using OrdinaryDiffEq:
     SSPRK33,
     SSPRK73
 using LandHydrology
+using LandHydrology: EarthParameterSet
+const param_set = EarthParameterSet()
 using LandHydrology.Domains: Column, make_function_space
 using LandHydrology.SoilInterface
 using LandHydrology.SoilInterface.SoilWaterParameterizations

@@ -1,8 +1,10 @@
 module SoilInterface
 import ClimaCore: Fields, Operators, Geometry, Spaces
+
 using DocStringExtensions
 using UnPack
 
+using LandHydrology: EarthParameterSet
 using LandHydrology.Domains: AbstractVerticalDomain, make_function_space, Column
 using LandHydrology.Models: AbstractModel
 include("SoilWaterParameterizations.jl")
