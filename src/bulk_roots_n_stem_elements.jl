@@ -12,23 +12,6 @@ XLSX.sheetnames(xf)
 sh = xf["Sheet1"] 
 
 ########## Parameters ###########
-# need TOML pkg
-#In parameter_file.toml
-#[parameter_1]
-#RunValue = 0.3
-#Type = "real"
-
-#[parameter_2]
-#RunValue = 0.3
-#Type = "real"
-#In your julia file do_some_canopy.jl:
-#using TOML
-#filename = "parameter_file.toml"
-#toml_dict = TOML.parsefile(filename)
-#edited)
-#5:28
-#access via toml_dict["parameter_1"]["RunValue"] for example
-
 MPa_to_Pa = sh[2,3]
 rho_water = sh[3,3]
 rhog_MPa = sh[5,3]
@@ -75,29 +58,13 @@ a_stem = sh[79,3]
 b_root = sh[80,3]
 b_stem = sh[81,3]
 
-# have a default grass, default plant, default tree ; different methods for each type once we start generalizing
-# use similar structure as for soil, think about hierarchy and regrouping
+# Set number of stem elements
+n_stem_elements = 2
 
-#=
-P = linspace(-15,0,1000);
-k_stem_power = (1 + (P./P_50_stem).^(a_x_stem)).^-1;
-logisticEqn = '(a_stem+1)/a_stem*(1-1/(1+a_stem*exp(b_stem*x)))';
-startPoints = [1 1];
-fstem = fit(P',k_stem_power', logisticEqn,'Start', startPoints); 
-stem_coeffs = coeffvalues(fstem);
-a_stem = stem_coeffs(1);
-b_stem = stem_coeffs(2);
-
-k_root_power = (1 + (P./P_50_root).^(a_x_root)).^-1;
-logisticEqn = '(a_root+1)/a_root*(1-1/(1+a_root*exp(b_root*x)))';
-startPoints = [1 1];
-froot = fit(P',k_root_power', logisticEqn,'Start', startPoints); 
-root_coeffs = coeffvalues(froot);
-a_root = root_coeffs(1);
-b_root = root_coeffs(2);
-=#
-
-paramset = [a_root a_stem b_root b_stem K_max_root_total_moles K_max_stem_moles rho_water rhog_MPa h_root h_stem pi_0_leaf pi_0_stem epsilon_leaf epsilon_stem theta_r_leaf theta_r_stem WD theta_tlp_leaf theta_tlp_stem theta_ft_stem size_reservoir_stem_moles size_reservoir_leaf_moles theta_ft_leaf volume_mole_water S_stem S_leaf porosity_stem porosity_leaf];
+# Set number of leaves
+n_leaves = 2
+n_tot = n_stem_elements + n_leaves 
+paramset = [n_stem_elements n_leaves a_root a_stem b_root b_stem K_max_root_total_moles K_max_stem_moles rho_water rhog_MPa h_root h_stem pi_0_leaf pi_0_stem epsilon_leaf epsilon_stem theta_r_leaf theta_r_stem WD theta_tlp_leaf theta_tlp_stem theta_ft_stem size_reservoir_stem_moles size_reservoir_leaf_moles theta_ft_leaf volume_mole_water S_stem S_leaf porosity_stem porosity_leaf];
 
 ########## Functions #########
  
@@ -161,29 +128,68 @@ paramset = [a_root a_stem b_root b_stem K_max_root_total_moles K_max_stem_moles 
     end
     =#
 
-function fstem!(F_stem,x)
+function fstem!(F_stem,x)   
+    flow = ones(1,n_stem_elements)
     flow_in_stem_approx = K_max_root_total_moles*vc_integral_approx(x[1], p_soil, a_root, b_root)*(p_soil - x[1] - rhog_MPa* h_root/2) / (p_soil - x[1])
-    flow_in_stem = vc_integral(x[1], p_soil, h_root/2, flow_in_stem_approx,K_max_root_total_moles, rhog_MPa, a_root, b_root)
-    F_stem[1] = flow_in_stem - T_0   
+    flow[1] = vc_integral(x[1], p_soil, h_root/2, flow_in_stem_approx,K_max_root_total_moles, rhog_MPa, a_root, b_root)
+    
+    if n_stem_elements > 1
+        for i in 2:n_stem_elements-1
+            flow_in_stem_approx = K_max_stem_moles*vc_integral_approx(x[i], x[i-1], a_root, b_root)*(x[i-1] - x[i] - rhog_MPa* h_stem/n_stem_elements/2) / (x[i-1] - x[i])
+            flow[i] = vc_integral(x[i], x[i-1], h_stem/n_stem_elements/2, flow_in_stem_approx, K_max_stem_moles, rhog_MPa, a_root, b_root)   
+            F_stem[i] = flow[i-1] - flow[i]
+        end
+    end
+
+    F_stem[end] = flow[end] - T_0   
 end
 
 function fleaf!(F_leaf,y)
-    flow_out_stem_approx = K_max_stem_moles*vc_integral_approx(y[1], p_stem_ini, a_stem, b_stem)*(p_stem_ini - y[1] - rhog_MPa* h_stem/2) / (p_stem_ini - y[1])
-    flow_out_stem = vc_integral(y[1], p_stem_ini, h_stem/2, flow_out_stem_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)
-    F_leaf[1] = flow_out_stem - T_0
+    # Leaf 1
+    flow_in_leaf_approx = K_max_stem_moles*vc_integral_approx(y[1], p_stem_ini[end], a_stem, b_stem)*(p_stem_ini[end] - y[1] - rhog_MPa* h_stem/n_stem_elements/2) / (p_stem_ini[end] - y[1])
+    flow[n_stem_elements+1] = vc_integral(y[1], p_stem[end], h_stem/n_stem_elements/2, flow_in_leaf_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)  
+
+    # Leaf n
+    for i in 2:n_leaves
+        flow_in_leaf_approx = K_max_stem_moles*vc_integral_approx(p_leaf[i], p_leaf[i-1], a_stem, b_stem)*(p_leaf[i-1] - p_leaf[i] - rhog_MPa* h_stem/n_stem_elements/2) / (p_leaf[i-1] - p_leaf[i])
+        flow[n_stem_elements+2] = vc_integral(p_leaf[i], p_leaf[i-1], h_stem/n_stem_elements/2, flow_in_stem_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)  
+        @show(flow)
+    end
 end
 
 ########## Solver ###########
 
 function roots(dy,y,paramset,t)
-    p_stem = theta_to_p(y[1]/size_reservoir_stem_moles, pi_0_stem, theta_r_stem, theta_tlp_stem, theta_ft_stem, epsilon_stem, S_stem)      
-    p_leaf = theta_to_p(y[2]/size_reservoir_leaf_moles, pi_0_leaf, theta_r_leaf, theta_tlp_leaf, theta_ft_leaf, epsilon_leaf, S_leaf)
-      
-    flow_in_stem_approx = K_max_root_total_moles*vc_integral_approx(p_stem, p_soil, a_root, b_root)*(p_soil - p_stem - rhog_MPa* h_root/2) / (p_soil - p_stem)
-    flow_in_stem = vc_integral(p_stem, p_soil, h_root/2, flow_in_stem_approx,K_max_root_total_moles, rhog_MPa, a_root, b_root)   
-    flow_out_stem_approx = K_max_stem_moles*vc_integral_approx(p_leaf, p_stem, a_stem, b_stem)*(p_stem - p_leaf - rhog_MPa* h_stem/2) / (p_stem - p_leaf)
-    flow_out_stem = vc_integral(p_leaf, p_stem, h_stem/2, flow_out_stem_approx,K_max_stem_moles, rhog_MPa, a_stem, b_stem)  
     
+    p_stem = theta_to_p(y[1:n_stem_elements]./size_reservoir_stem_moles, pi_0_stem, theta_r_stem, theta_tlp_stem, theta_ft_stem, epsilon_stem, S_stem)      
+    p_leaf = theta_to_p(y[n_stem_elements+1:end]./size_reservoir_leaf_moles, pi_0_leaf, theta_r_leaf, theta_tlp_leaf, theta_ft_leaf, epsilon_leaf, S_leaf)
+    flow = ones(1,n_stem_elements+n_leaves)
+    @show(p_stem)
+    @show(p_leaf)
+
+    # Stem 1
+    flow_in_stem_approx = K_max_root_total_moles*vc_integral_approx(p_stem[1], p_soil, a_root, b_root)*(p_soil - p_stem[1] - rhog_MPa * h_root/2) / (p_soil - p_stem[1])
+    flow[1] = vc_integral(p_stem[1], p_soil, h_root/2, flow_in_stem_approx, K_max_root_total_moles, rhog_MPa, a_root, b_root)   
+
+    # Stem n
+    for i in 2:n_stem_elements
+        @show(i)
+        flow_in_stem_approx = K_max_stem_moles*vc_integral_approx(p_stem[i], p_stem[i-1], a_root, b_root)*(p_stem[i-1] - p_stem[i] - rhog_MPa* h_stem/n_stem_elements/2) / (p_stem[i-1] - p_stem[i])
+        flow[i] = vc_integral(p_stem[i], p_stem[i-1], h_stem/n_stem_elements/2, flow_in_stem_approx,K_max_stem_moles, rhog_MPa, a_root, b_root)   
+        @show(flow)
+    end
+
+    # Leaf 1
+    flow_in_leaf_approx = K_max_stem_moles*vc_integral_approx(p_leaf[1], p_stem[end], a_stem, b_stem)*(p_stem[end] - p_leaf[1] - rhog_MPa* h_stem/n_stem_elements/2) / (p_stem[end] - p_leaf[1])
+    flow[n_stem_elements+1] = vc_integral(p_leaf[1], p_stem[end], h_stem/n_stem_elements/2, flow_in_leaf_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)  
+
+    # Leaf n
+    for i in 2:n_leaves
+        flow_in_leaf_approx = K_max_stem_moles*vc_integral_approx(p_leaf[i], p_leaf[i-1], a_stem, b_stem)*(p_leaf[i-1] - p_leaf[i] - rhog_MPa* h_stem/n_stem_elements/2) / (p_leaf[i-1] - p_leaf[i])
+        flow[n_stem_elements+2] = vc_integral(p_leaf[i], p_leaf[i-1], h_stem/n_stem_elements/2, flow_in_stem_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)  
+        @show(flow)
+    end
+
     if t < 500 
         T = T_0;
     elseif t >= 500 && t < 1000
@@ -192,68 +198,41 @@ function roots(dy,y,paramset,t)
         T = 10*(T_0/5)*500/500+T_0
     end
     
-    dy[1] = flow_in_stem - flow_out_stem
-    dy[2] = flow_out_stem - T
-end
-
-############### Analytic approximation #######
-function analytical_approx(T_0,t1,t2) 
-    # ydot_approx = -T0/5*(t-5)+T0 # integrand
-    
-    int_ydot_approx_1 = t1
-    int_ydot_approx_2 = t2
-    t1length = 1:length(t1)
-
-    for i in t1length
-
-        t1_i = t1[i]
-        t2_i = t2[i]
-
-        #@show(t2_i)
-
-        if t1_i < 500 
-            int_ydot_approx_1[i] = 0.0
-        elseif t1_i >= 500 && t1_i < 1000
-            int_ydot_approx_1[i] = -T_0./(5*500) .*((t1_i.^2)./2 .- 5 .*t1_i) # integral result
-        else t1_i >= 1000
-            int_ydot_approx_1[i] = 0.0
-        end
-
-        if t2_i < 500 
-            int_ydot_approx_2[i] = 0
-        elseif t2_i >= 500 && t2_i < 1000
-            int_ydot_approx_2[i] = -T_0/(5*500) .* ((t2_i.^2)./2 - 5 .* t2_i)
-        else t2_i >= 1000
-            int_ydot_approx_2[i] = 0.0
-        end
-
+    for i in 1:n_tot-1
+        dy[i] = flow[i] - flow[i+1]
     end
 
-    #int_ydot_approx_1 = -T_0./5 .*((t1.^2)./2 .- 5 .*t1) # integral result
-    #int_ydot_approx_2 = -T_0/5 .* ((t2.^2)./2 - 5 .* t2)
-    int_ydot_approx = int_ydot_approx_2 .- int_ydot_approx_1 
+    dy[end] = flow[end] - T
 end
 
 ########## Initial values ###########
 T_0 = 0.01/mass_mole_water # moles per s, using value at noon fig 9j) Christoffersen                    
-p_soil = 0.0 # MPa want it to be wet and wetter than rest of plant, so close to 0
+p_soil = 0.0 # MPa want it to be saturated, and more saturated than rest of plant, so close to 0
 
 # Set system to equilibrium state by setting LHS of both odes to 0
-solnstem = nlsolve(fstem!, [-1.0])
-p_stem_ini = solnstem.zero[1]
-solnleaf= nlsolve(fleaf!, [-1.0])
-p_leaf_ini = solnleaf.zero[1]
+starting_point = -1.0
+
+solnstem = nlsolve(fstem!, starting_point.*ones(n_stem_elements,1))
+p_stem_1_ini = solnstem.zero[1]
+
+#=
+solnleaf= nlsolve(fleaf!, [starting_point])
+p_leaf_2_ini = solnleaf.zero[1]
 
 theta_stem_0 = p_to_theta(p_stem_ini, pi_0_stem, pi_tlp_stem, theta_r_stem, theta_ft_stem, epsilon_stem, S_stem)
 theta_leaf_0 = p_to_theta(p_leaf_ini, pi_0_leaf, pi_tlp_leaf, theta_r_leaf, theta_ft_leaf, epsilon_leaf, S_leaf)
-y1_0 = float(theta_stem_0*size_reservoir_stem_moles)
-y2_0 = float(theta_leaf_0*size_reservoir_leaf_moles)
-y0 = [y1_0; y2_0]
+
+y1_0 = float(theta_stem_0*size_reservoir_stem_moles) #.*(ones(n_stem_elements,1))
+y2_0 = y1_0*1.2
+y3_0 = float(theta_leaf_0*size_reservoir_leaf_moles) #.*(ones(n_leaves,1))
+y4_0 = y3_0*1.2
+
+y0 = [y1_0; y2_0; y3_0; y4_0]
 
 ############### Simulation length ###
 tend = 60*60.0*2
 tspan = (0.0,tend)
-dt = 1
+dt = 0.1
 alg = Euler()
 alg_name = "Euler"
 
@@ -266,12 +245,14 @@ alg_name = "Euler"
 prob = ODEProblem(roots,y0,tspan,paramset)
 sol = solve(prob,alg,adaptive=false,dt=dt)
 
-y_1 = reduce(hcat,sol.u)[1,:]
-y_2 = reduce(hcat,sol.u)[2,:]
+for i in 1:n_stem_elements
+    plot(sol.t, reduce(hcat,sol.u)[i,:], label="stem", xaxis="t [s]", yaxis="water content [mol]", dpi=500)
+end 
 
-plot(sol.t, y_1, label="stem", xaxis="t [s]", yaxis="water content [mol]", dpi=500)
-plot!(sol.t, y_2, label="leaves")
-savefig("water_content_moles.png") 
+for i in n_stem_elements+1:n_tot
+    plot!(sol.t, reduce(hcat,sol.u)[i,:], label="leaves")
+end 
+savefig("water_content_moles.png")
 
 # Convert soln to volumetric water content and plot
 y_theta_1 = y_1/size_reservoir_stem_moles
@@ -311,7 +292,6 @@ plot(sol.t,flow_in_stem,linewidth=2,xaxis="time [s]",yaxis="flow [mol s-1]",labe
 plot!(sol.t,flow_out_stem,linewidth=2,label="flow into leaves",dpi=500)
 plot!(sol.t,T,linewidth=2,label="transpiration boundary condition",dpi=500)
 
-#=
 savefig("flow.png") 
 
 # Does this verify water conservation or just the implementation of the method? We are comparing change in 
@@ -331,7 +311,7 @@ savefig("water_conservation_per_step.png")
 # Cumulative error over time
 yt0 = y_1[1] .+ y_2[1]
 water_cons_cum = (yt.-yt0.-(cumsum(su)))
-plot(sol.t,water_cons_cum,xaxis="t",yaxis="cumulative water conservation error [mol]", label=alg_name, title="yt-y0-(cumsum((flow in base-T).*dt))", dpi=500)
+plot(sol.t,water_cons_cum,xaxis="t",yaxis="cumulative water conservation error [mol]", label=alg_name, title="yt-y0-(cumsum((flow in stem-T).*dt))", dpi=500)
 savefig("water_conservation_cumulative.png") 
 
 # Explain error Forward Euler (Euler1)
@@ -375,5 +355,25 @@ plot(sol,linewidth=2,xaxis="t",label=["θ [rad]" "ω [rad/s]"],layout=(2,1))
 # Ask Yujie about tests he's done with data
 
 # Change the boundary condition to a pressure one (VPD) 
+
+# have a default grass, default plant, default tree ; different methods for each type once we start generalizing
+# use similar structure as for soil, think about hierarchy and regrouping
+
+P = linspace(-15,0,1000);
+k_stem_power = (1 + (P./P_50_stem).^(a_x_stem)).^-1;
+logisticEqn = '(a_stem+1)/a_stem*(1-1/(1+a_stem*exp(b_stem*x)))';
+startPoints = [1 1];
+fstem = fit(P',k_stem_power', logisticEqn,'Start', startPoints); 
+stem_coeffs = coeffvalues(fstem);
+a_stem = stem_coeffs(1);
+b_stem = stem_coeffs(2);
+
+k_root_power = (1 + (P./P_50_root).^(a_x_root)).^-1;
+logisticEqn = '(a_root+1)/a_root*(1-1/(1+a_root*exp(b_root*x)))';
+startPoints = [1 1];
+froot = fit(P',k_root_power', logisticEqn,'Start', startPoints); 
+root_coeffs = coeffvalues(froot);
+a_root = root_coeffs(1);
+b_root = root_coeffs(2);
 
 =#

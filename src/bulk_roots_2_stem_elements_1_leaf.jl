@@ -161,29 +161,39 @@ paramset = [a_root a_stem b_root b_stem K_max_root_total_moles K_max_stem_moles 
     end
     =#
 
-function fstem!(F_stem,x)
+function fstem1!(F_stem,x)
     flow_in_stem_approx = K_max_root_total_moles*vc_integral_approx(x[1], p_soil, a_root, b_root)*(p_soil - x[1] - rhog_MPa* h_root/2) / (p_soil - x[1])
     flow_in_stem = vc_integral(x[1], p_soil, h_root/2, flow_in_stem_approx,K_max_root_total_moles, rhog_MPa, a_root, b_root)
     F_stem[1] = flow_in_stem - T_0   
 end
 
-function fleaf!(F_leaf,y)
-    flow_out_stem_approx = K_max_stem_moles*vc_integral_approx(y[1], p_stem_ini, a_stem, b_stem)*(p_stem_ini - y[1] - rhog_MPa* h_stem/2) / (p_stem_ini - y[1])
-    flow_out_stem = vc_integral(y[1], p_stem_ini, h_stem/2, flow_out_stem_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)
+function fstem2!(F_stem,x)
+    flow_in_stem_approx = K_max_stem_moles*vc_integral_approx(x[1], p_stem_ini[1], a_stem, b_stem)*(p_stem_ini[1] - x[1] - rhog_MPa* h_stem/2/2) / (p_stem_ini[1] - x[1])
+    flow_in_stem = vc_integral(x[1], p_stem_ini[1], h_stem/2/2, flow_in_stem_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)
+    F_stem[1] = flow_in_stem - T_0   
+end
+
+function fleaf!(F_leaf,x)
+    flow_out_stem_approx = K_max_stem_moles*vc_integral_approx(x[1], p_stem_ini[2], a_stem, b_stem)*(p_stem_ini[2] - x[1] - rhog_MPa* h_stem/2/2) / (p_stem_ini[2] - x[1])
+    flow_out_stem = vc_integral(x[1], p_stem_ini[2], h_stem/2/2, flow_out_stem_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)
     F_leaf[1] = flow_out_stem - T_0
 end
 
 ########## Solver ###########
-
 function roots(dy,y,paramset,t)
-    p_stem = theta_to_p(y[1]/size_reservoir_stem_moles, pi_0_stem, theta_r_stem, theta_tlp_stem, theta_ft_stem, epsilon_stem, S_stem)      
-    p_leaf = theta_to_p(y[2]/size_reservoir_leaf_moles, pi_0_leaf, theta_r_leaf, theta_tlp_leaf, theta_ft_leaf, epsilon_leaf, S_leaf)
+    p_stem1 = theta_to_p(y[1]/size_reservoir_stem_moles, pi_0_stem, theta_r_stem, theta_tlp_stem, theta_ft_stem, epsilon_stem, S_stem)      
+    p_stem2 = theta_to_p(y[2]/size_reservoir_stem_moles, pi_0_stem, theta_r_stem, theta_tlp_stem, theta_ft_stem, epsilon_stem, S_stem)      
+    p_leaf = theta_to_p(y[3]/size_reservoir_leaf_moles, pi_0_leaf, theta_r_leaf, theta_tlp_leaf, theta_ft_leaf, epsilon_leaf, S_leaf)
       
-    flow_in_stem_approx = K_max_root_total_moles*vc_integral_approx(p_stem, p_soil, a_root, b_root)*(p_soil - p_stem - rhog_MPa* h_root/2) / (p_soil - p_stem)
-    flow_in_stem = vc_integral(p_stem, p_soil, h_root/2, flow_in_stem_approx,K_max_root_total_moles, rhog_MPa, a_root, b_root)   
-    flow_out_stem_approx = K_max_stem_moles*vc_integral_approx(p_leaf, p_stem, a_stem, b_stem)*(p_stem - p_leaf - rhog_MPa* h_stem/2) / (p_stem - p_leaf)
-    flow_out_stem = vc_integral(p_leaf, p_stem, h_stem/2, flow_out_stem_approx,K_max_stem_moles, rhog_MPa, a_stem, b_stem)  
+    flow_in_stem1_approx = K_max_root_total_moles*vc_integral_approx(p_stem1, p_soil, a_root, b_root)*(p_soil - p_stem1 - rhog_MPa* h_root/2) / (p_soil - p_stem1)
+    flow_in_stem1 = vc_integral(p_stem1, p_soil, h_root/2, flow_in_stem1_approx,K_max_root_total_moles, rhog_MPa, a_root, b_root)   
     
+    flow_in_stem2_approx = K_max_stem_moles*vc_integral_approx(p_stem2, p_stem1, a_stem, b_stem)*(p_stem1 - p_stem2 - rhog_MPa* h_stem/2/2) / (p_stem1 - p_stem2)
+    flow_in_stem2 = vc_integral(p_stem2, p_stem1, h_stem/2/2, flow_in_stem2_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)  
+ 
+    flow_in_leaf_approx = K_max_stem_moles*vc_integral_approx(p_leaf, p_stem2, a_stem, b_stem)*(p_stem2 - p_leaf - rhog_MPa* h_stem/2/2) / (p_stem2 - p_leaf)
+    flow_in_leaf = vc_integral(p_leaf, p_stem2, h_stem/2/2, flow_in_leaf_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)  
+
     if t < 500 
         T = T_0;
     elseif t >= 500 && t < 1000
@@ -192,46 +202,9 @@ function roots(dy,y,paramset,t)
         T = 10*(T_0/5)*500/500+T_0
     end
     
-    dy[1] = flow_in_stem - flow_out_stem
-    dy[2] = flow_out_stem - T
-end
-
-############### Analytic approximation #######
-function analytical_approx(T_0,t1,t2) 
-    # ydot_approx = -T0/5*(t-5)+T0 # integrand
-    
-    int_ydot_approx_1 = t1
-    int_ydot_approx_2 = t2
-    t1length = 1:length(t1)
-
-    for i in t1length
-
-        t1_i = t1[i]
-        t2_i = t2[i]
-
-        #@show(t2_i)
-
-        if t1_i < 500 
-            int_ydot_approx_1[i] = 0.0
-        elseif t1_i >= 500 && t1_i < 1000
-            int_ydot_approx_1[i] = -T_0./(5*500) .*((t1_i.^2)./2 .- 5 .*t1_i) # integral result
-        else t1_i >= 1000
-            int_ydot_approx_1[i] = 0.0
-        end
-
-        if t2_i < 500 
-            int_ydot_approx_2[i] = 0
-        elseif t2_i >= 500 && t2_i < 1000
-            int_ydot_approx_2[i] = -T_0/(5*500) .* ((t2_i.^2)./2 - 5 .* t2_i)
-        else t2_i >= 1000
-            int_ydot_approx_2[i] = 0.0
-        end
-
-    end
-
-    #int_ydot_approx_1 = -T_0./5 .*((t1.^2)./2 .- 5 .*t1) # integral result
-    #int_ydot_approx_2 = -T_0/5 .* ((t2.^2)./2 - 5 .* t2)
-    int_ydot_approx = int_ydot_approx_2 .- int_ydot_approx_1 
+    dy[1] = flow_in_stem1 - flow_in_stem2
+    dy[2] = flow_in_stem2 - flow_in_leaf
+    dy[3] = flow_in_leaf - T
 end
 
 ########## Initial values ###########
@@ -239,16 +212,23 @@ T_0 = 0.01/mass_mole_water # moles per s, using value at noon fig 9j) Christoffe
 p_soil = 0.0 # MPa want it to be wet and wetter than rest of plant, so close to 0
 
 # Set system to equilibrium state by setting LHS of both odes to 0
-solnstem = nlsolve(fstem!, [-1.0])
-p_stem_ini = solnstem.zero[1]
-solnleaf= nlsolve(fleaf!, [-1.0])
+p_stem_ini=ones(1,2)
+
+solnstem1 = nlsolve(fstem1!, [-1.0])
+p_stem_ini[1] = solnstem1.zero[1]
+solnstem2 = nlsolve(fstem2!, [-1.0])
+p_stem_ini[2] = solnstem2.zero[1]
+solnleaf = nlsolve(fleaf!, [-1.0])
 p_leaf_ini = solnleaf.zero[1]
 
-theta_stem_0 = p_to_theta(p_stem_ini, pi_0_stem, pi_tlp_stem, theta_r_stem, theta_ft_stem, epsilon_stem, S_stem)
+theta_stem1_0 = p_to_theta(p_stem_ini[1], pi_0_stem, pi_tlp_stem, theta_r_stem, theta_ft_stem, epsilon_stem, S_stem)
+theta_stem2_0 = p_to_theta(p_stem_ini[2], pi_0_stem, pi_tlp_stem, theta_r_stem, theta_ft_stem, epsilon_stem, S_stem)
 theta_leaf_0 = p_to_theta(p_leaf_ini, pi_0_leaf, pi_tlp_leaf, theta_r_leaf, theta_ft_leaf, epsilon_leaf, S_leaf)
-y1_0 = float(theta_stem_0*size_reservoir_stem_moles)
-y2_0 = float(theta_leaf_0*size_reservoir_leaf_moles)
-y0 = [y1_0; y2_0]
+
+y1_0 = float(theta_stem1_0*size_reservoir_stem_moles)
+y2_0 = float(theta_stem2_0*size_reservoir_stem_moles)
+y3_0 = float(theta_leaf_0*size_reservoir_leaf_moles)
+y0 = [y1_0; y2_0; y3_0]
 
 ############### Simulation length ###
 tend = 60*60.0*2
@@ -268,26 +248,36 @@ sol = solve(prob,alg,adaptive=false,dt=dt)
 
 y_1 = reduce(hcat,sol.u)[1,:]
 y_2 = reduce(hcat,sol.u)[2,:]
+y_3 = reduce(hcat,sol.u)[3,:]
 
-plot(sol.t, y_1, label="stem", xaxis="t [s]", yaxis="water content [mol]", dpi=500)
-plot!(sol.t, y_2, label="leaves")
+plot(sol.t, y_1, label="stem_segment_1", xaxis="t [s]", yaxis="water content [mol]", dpi=500)
+plot!(sol.t, y_2, label="stem_segment_2")
+plot!(sol.t, y_3, label="leaves")
 savefig("water_content_moles.png") 
 
 # Convert soln to volumetric water content and plot
 y_theta_1 = y_1/size_reservoir_stem_moles
-y_theta_2 = y_2/size_reservoir_leaf_moles
+y_theta_2 = y_2/size_reservoir_stem_moles
+y_theta_3 = y_3/size_reservoir_leaf_moles
 
-plot(sol.t,y_theta_1, label="stem", xaxis="t [s]", yaxis="relative water content [mol/mol]",dpi=500)
-plot!(sol.t,y_theta_2, label="leaves",dpi=500)
+plot(sol.t,y_theta_1, label="stem element 1", xaxis="t [s]", yaxis="relative water content [mol/mol]",dpi=500)
+plot!(sol.t,y_theta_2, label="stem element 2")
+plot!(sol.t,y_theta_3, label="leaves",dpi=500)
 savefig("relative_water_content.png") 
 
 # Compute pressure and flow rates from soln and plot
-p_stem = theta_to_p(y_theta_1, pi_0_stem, theta_r_stem, theta_tlp_stem, theta_ft_stem, epsilon_stem, S_stem)       
-p_leaf = theta_to_p(y_theta_2, pi_0_leaf, theta_r_leaf, theta_tlp_leaf, theta_ft_leaf, epsilon_leaf, S_leaf)
-flow_in_stem_approx = K_max_root_total_moles.*vc_integral_approx(p_stem, p_soil, a_root, b_root).*(p_soil .- p_stem .- rhog_MPa * h_root/2) ./ (p_soil .- p_stem)
-flow_in_stem = vc_integral(p_stem, p_soil, h_root/2, flow_in_stem_approx,K_max_root_total_moles, rhog_MPa, a_root, b_root)   
-flow_out_stem_approx = K_max_stem_moles.*vc_integral_approx(p_leaf, p_stem, a_stem, b_stem).*(p_stem .- p_leaf .- rhog_MPa*h_stem/2) ./ (p_stem .- p_leaf)
-flow_out_stem = vc_integral(p_leaf, p_stem, h_stem/2, flow_out_stem_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)  
+p_stem1 = theta_to_p(y_theta_1, pi_0_stem, theta_r_stem, theta_tlp_stem, theta_ft_stem, epsilon_stem, S_stem)       
+p_stem2 = theta_to_p(y_theta_2, pi_0_stem, theta_r_stem, theta_tlp_stem, theta_ft_stem, epsilon_stem, S_stem)       
+p_leaf = theta_to_p(y_theta_3, pi_0_leaf, theta_r_leaf, theta_tlp_leaf, theta_ft_leaf, epsilon_leaf, S_leaf)
+
+flow_in_stem1_approx = K_max_root_total_moles*vc_integral_approx(p_stem1, p_soil, a_root, b_root).*(p_soil .- p_stem1 .- rhog_MPa .* h_root/2) ./ (p_soil .- p_stem1)
+flow_in_stem1 = vc_integral(p_stem1, p_soil, h_root/2, flow_in_stem1_approx,K_max_root_total_moles, rhog_MPa, a_root, b_root)   
+    
+flow_in_stem2_approx = K_max_stem_moles*vc_integral_approx(p_stem2, p_stem1, a_stem, b_stem).*(p_stem1 .- p_stem2 .- rhog_MPa .* h_stem/2/2) ./ (p_stem1 .- p_stem2)
+flow_in_stem2 = vc_integral(p_stem2, p_stem1, h_stem/2/2, flow_in_stem2_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)  
+ 
+flow_in_leaf_approx = K_max_stem_moles*vc_integral_approx(p_leaf, p_stem2, a_stem, b_stem).*(p_stem2 .- p_leaf .- rhog_MPa .* h_stem/2/2) ./ (p_stem2 .- p_leaf)
+flow_in_leaf = vc_integral(p_leaf, p_stem2, h_stem/2/2, flow_in_leaf_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)  
 
 T = collect(0.0:dt:Float64(tend))
 tlength = 1:length(T)
@@ -302,17 +292,17 @@ end
 end
 
 # Plot pressure in stem and leaves as function of time [MPa]
-plot(sol.t,p_stem,linewidth=2,xaxis="time [s]",yaxis="pressure [MPa]",label="stem",dpi=500)
-plot!(sol.t,p_leaf,linewidth=2,label="leaves",dpi=500)
+plot(sol.t, p_stem1,linewidth=2,xaxis="time [s]",yaxis="pressure [MPa]",label="stem element 1",dpi=500)
+plot!(sol.t, p_stem2,linewidth=2, label="stem element 2")
+plot!(sol.t, p_leaf,linewidth=2, label="leaves")
 savefig("pressure.png") 
 
 # Plot flow as a function of time [mol s-1]
-plot(sol.t,flow_in_stem,linewidth=2,xaxis="time [s]",yaxis="flow [mol s-1]",label="flow into stem",legend=:bottomright,dpi=500)
-plot!(sol.t,flow_out_stem,linewidth=2,label="flow into leaves",dpi=500)
-plot!(sol.t,T,linewidth=2,label="transpiration boundary condition",dpi=500)
-
-#=
+plot(sol.t,flow_in_stem1,linewidth=2,xaxis="time [s]",yaxis="flow [mol s-1]",label="into stem element 1",legend=:bottomright,dpi=500)
+plot!(sol.t,flow_in_stem2,linewidth=2,label="into stem element 2")
+plot!(sol.t,T,linewidth=2,label="leaf transpiration boundary condition [mol s-1]")
 savefig("flow.png") 
+
 
 # Does this verify water conservation or just the implementation of the method? We are comparing change in 
 # total water content over one time step to the net flow... I would say yes

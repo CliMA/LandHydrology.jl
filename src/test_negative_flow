@@ -161,39 +161,33 @@ paramset = [a_root a_stem b_root b_stem K_max_root_total_moles K_max_stem_moles 
     end
     =#
 
-function fstem!(F_stem,x)
-    flow_in_stem_approx = K_max_root_total_moles*vc_integral_approx(x[1], p_soil, a_root, b_root)*(p_soil - x[1] - rhog_MPa* h_root/2) / (p_soil - x[1])
-    flow_in_stem = vc_integral(x[1], p_soil, h_root/2, flow_in_stem_approx,K_max_root_total_moles, rhog_MPa, a_root, b_root)
-    F_stem[1] = flow_in_stem - T_0   
+function fbase!(F_base,x)
+    flow_in_base_approx = K_max_root_total_moles*vc_integral_approx(x[1], p_soil, a_root, b_root)*(p_soil - x[1] - rhog_MPa* h_root/2) / (p_soil - x[1])
+    flow_in_base = vc_integral(x[1], p_soil, h_root/2, flow_in_base_approx,K_max_root_total_moles, rhog_MPa, a_root, b_root)
+    F_base[1] = flow_in_base - T_0   
 end
 
 function fleaf!(F_leaf,y)
-    flow_out_stem_approx = K_max_stem_moles*vc_integral_approx(y[1], p_stem_ini, a_stem, b_stem)*(p_stem_ini - y[1] - rhog_MPa* h_stem/2) / (p_stem_ini - y[1])
-    flow_out_stem = vc_integral(y[1], p_stem_ini, h_stem/2, flow_out_stem_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)
-    F_leaf[1] = flow_out_stem - T_0
+    flow_out_base_approx = K_max_stem_moles*vc_integral_approx(y[1], p_base_ini, a_stem, b_stem)*(p_base_ini - y[1] - rhog_MPa* h_stem/2) / (p_base_ini - y[1])
+    flow_out_base = vc_integral(y[1], p_base_ini, h_stem/2, flow_out_base_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)
+    F_leaf[1] = flow_out_base - T_0
 end
 
 ########## Solver ###########
 
 function roots(dy,y,paramset,t)
-    p_stem = theta_to_p(y[1]/size_reservoir_stem_moles, pi_0_stem, theta_r_stem, theta_tlp_stem, theta_ft_stem, epsilon_stem, S_stem)      
+    p_base = theta_to_p(y[1]/size_reservoir_stem_moles, pi_0_stem, theta_r_stem, theta_tlp_stem, theta_ft_stem, epsilon_stem, S_stem)      
     p_leaf = theta_to_p(y[2]/size_reservoir_leaf_moles, pi_0_leaf, theta_r_leaf, theta_tlp_leaf, theta_ft_leaf, epsilon_leaf, S_leaf)
       
-    flow_in_stem_approx = K_max_root_total_moles*vc_integral_approx(p_stem, p_soil, a_root, b_root)*(p_soil - p_stem - rhog_MPa* h_root/2) / (p_soil - p_stem)
-    flow_in_stem = vc_integral(p_stem, p_soil, h_root/2, flow_in_stem_approx,K_max_root_total_moles, rhog_MPa, a_root, b_root)   
-    flow_out_stem_approx = K_max_stem_moles*vc_integral_approx(p_leaf, p_stem, a_stem, b_stem)*(p_stem - p_leaf - rhog_MPa* h_stem/2) / (p_stem - p_leaf)
-    flow_out_stem = vc_integral(p_leaf, p_stem, h_stem/2, flow_out_stem_approx,K_max_stem_moles, rhog_MPa, a_stem, b_stem)  
+    flow_in_base_approx = K_max_root_total_moles*vc_integral_approx(p_base, p_soil, a_root, b_root)*(p_soil - p_base - rhog_MPa* h_root/2) / (p_soil - p_base)
+    flow_in_base = vc_integral(p_base, p_soil, h_root/2, flow_in_base_approx,K_max_root_total_moles, rhog_MPa, a_root, b_root)   
+    flow_out_base_approx = K_max_stem_moles*vc_integral_approx(p_leaf, p_base, a_stem, b_stem)*(p_base - p_leaf - rhog_MPa* h_stem/2) / (p_base - p_leaf)
+    flow_out_base = vc_integral(p_leaf, p_base, h_stem/2, flow_out_base_approx,K_max_stem_moles, rhog_MPa, a_stem, b_stem)  
     
-    if t < 500 
-        T = T_0;
-    elseif t >= 500 && t < 1000
-        T = 10*(T_0/5)*(t-500)/500+T_0
-    else t >= 1000
-        T = 10*(T_0/5)*500/500+T_0
-    end
+    T = T_0
     
-    dy[1] = flow_in_stem - flow_out_stem
-    dy[2] = flow_out_stem - T
+    dy[1] = flow_in_base - flow_out_base
+    dy[2] = flow_out_base - T
 end
 
 ############### Analytic approximation #######
@@ -209,7 +203,7 @@ function analytical_approx(T_0,t1,t2)
         t1_i = t1[i]
         t2_i = t2[i]
 
-        #@show(t2_i)
+        @show(t2_i)
 
         if t1_i < 500 
             int_ydot_approx_1[i] = 0.0
@@ -239,14 +233,14 @@ T_0 = 0.01/mass_mole_water # moles per s, using value at noon fig 9j) Christoffe
 p_soil = 0.0 # MPa want it to be wet and wetter than rest of plant, so close to 0
 
 # Set system to equilibrium state by setting LHS of both odes to 0
-solnstem = nlsolve(fstem!, [-1.0])
-p_stem_ini = solnstem.zero[1]
+solnbase = nlsolve(fbase!, [-1.0])
+p_base_ini = solnbase.zero[1]
 solnleaf= nlsolve(fleaf!, [-1.0])
 p_leaf_ini = solnleaf.zero[1]
 
-theta_stem_0 = p_to_theta(p_stem_ini, pi_0_stem, pi_tlp_stem, theta_r_stem, theta_ft_stem, epsilon_stem, S_stem)
+theta_base_0 = p_to_theta(p_base_ini, pi_0_stem, pi_tlp_stem, theta_r_stem, theta_ft_stem, epsilon_stem, S_stem)
 theta_leaf_0 = p_to_theta(p_leaf_ini, pi_0_leaf, pi_tlp_leaf, theta_r_leaf, theta_ft_leaf, epsilon_leaf, S_leaf)
-y1_0 = float(theta_stem_0*size_reservoir_stem_moles)
+y1_0 = float(theta_base_0*size_reservoir_stem_moles)
 y2_0 = float(theta_leaf_0*size_reservoir_leaf_moles)
 y0 = [y1_0; y2_0]
 
@@ -261,8 +255,7 @@ alg_name = "Euler"
 #alg = SSPRK22()
 #alg_name = "SSPRK22"
 
-################ Solve the problem
-
+################ Solve the problem ##
 prob = ODEProblem(roots,y0,tspan,paramset)
 sol = solve(prob,alg,adaptive=false,dt=dt)
 
@@ -282,12 +275,12 @@ plot!(sol.t,y_theta_2, label="leaves",dpi=500)
 savefig("relative_water_content.png") 
 
 # Compute pressure and flow rates from soln and plot
-p_stem = theta_to_p(y_theta_1, pi_0_stem, theta_r_stem, theta_tlp_stem, theta_ft_stem, epsilon_stem, S_stem)       
+p_base = theta_to_p(y_theta_1, pi_0_stem, theta_r_stem, theta_tlp_stem, theta_ft_stem, epsilon_stem, S_stem)       
 p_leaf = theta_to_p(y_theta_2, pi_0_leaf, theta_r_leaf, theta_tlp_leaf, theta_ft_leaf, epsilon_leaf, S_leaf)
-flow_in_stem_approx = K_max_root_total_moles.*vc_integral_approx(p_stem, p_soil, a_root, b_root).*(p_soil .- p_stem .- rhog_MPa * h_root/2) ./ (p_soil .- p_stem)
-flow_in_stem = vc_integral(p_stem, p_soil, h_root/2, flow_in_stem_approx,K_max_root_total_moles, rhog_MPa, a_root, b_root)   
-flow_out_stem_approx = K_max_stem_moles.*vc_integral_approx(p_leaf, p_stem, a_stem, b_stem).*(p_stem .- p_leaf .- rhog_MPa*h_stem/2) ./ (p_stem .- p_leaf)
-flow_out_stem = vc_integral(p_leaf, p_stem, h_stem/2, flow_out_stem_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)  
+flow_in_base_approx = K_max_root_total_moles.*vc_integral_approx(p_base, p_soil, a_root, b_root).*(p_soil .- p_base .- rhog_MPa * h_root/2) ./ (p_soil .- p_base)
+flow_in_base = vc_integral(p_base, p_soil, h_root/2, flow_in_base_approx,K_max_root_total_moles, rhog_MPa, a_root, b_root)   
+flow_out_base_approx = K_max_stem_moles.*vc_integral_approx(p_leaf, p_base, a_stem, b_stem).*(p_base .- p_leaf .- rhog_MPa*h_stem/2) ./ (p_base .- p_leaf)
+flow_out_base = vc_integral(p_leaf, p_base, h_stem/2, flow_out_base_approx, K_max_stem_moles, rhog_MPa, a_stem, b_stem)  
 
 T = collect(0.0:dt:Float64(tend))
 tlength = 1:length(T)
@@ -302,30 +295,28 @@ end
 end
 
 # Plot pressure in stem and leaves as function of time [MPa]
-plot(sol.t,p_stem,linewidth=2,xaxis="time [s]",yaxis="pressure [MPa]",label="stem",dpi=500)
+plot(sol.t,p_base,linewidth=2,xaxis="time [s]",yaxis="pressure [MPa]",label="stem",dpi=500)
 plot!(sol.t,p_leaf,linewidth=2,label="leaves",dpi=500)
 savefig("pressure.png") 
 
 # Plot flow as a function of time [mol s-1]
-plot(sol.t,flow_in_stem,linewidth=2,xaxis="time [s]",yaxis="flow [mol s-1]",label="flow into stem",legend=:bottomright,dpi=500)
-plot!(sol.t,flow_out_stem,linewidth=2,label="flow into leaves",dpi=500)
+plot(sol.t,flow_in_base,linewidth=2,xaxis="time [s]",yaxis="flow [mol s-1]",label="flow into stem",legend=:bottomright,dpi=500)
+plot!(sol.t,flow_out_base,linewidth=2,label="flow into leaves",dpi=500)
 plot!(sol.t,T,linewidth=2,label="transpiration boundary condition",dpi=500)
-
-#=
 savefig("flow.png") 
 
 # Does this verify water conservation or just the implementation of the method? We are comparing change in 
 # total water content over one time step to the net flow... I would say yes
-# this is a way of verifying water cons as we are doing flow in stem - T (not looking at flow out stem)
+# this is a way of verifying water cons as we are doing flow in base - T (not looking at flow out base)
 
 # Plot error as function of time [mol]
 yt = y_1 .+ y_2
 ychange = diff(yt)
-su = (flow_in_stem.-T).*dt
+su = (flow_in_base.-T).*dt
 water_cons = ychange.-su[1:end-1] # 1:end-1 not 2:end because in Euler method y(t+h)=y(t0)+h*y'(t0), and t0 is time step 1
 tvec = collect(1:length(ychange)) # We expect this to be very close to 0, because we are here implementing the Euler 1 method, could be error due to subtraction?
 # interesting, when we do : water_cons = ychange.-su[1:end-1], we get exactly twice the error due to Euler method (2* 0.555 = 0.111 moles) 
-plot(tvec,water_cons,xaxis="time [s]",yaxis="water conservation error per step [mol]", label=alg_name, title="diff(yt)-[(flow in stem-T).*dt](1:end-1)", dpi=500)
+plot(tvec,water_cons,xaxis="time [s]",yaxis="water conservation error per step [mol]", label=alg_name, title="diff(yt)-[(flow in base-T).*dt](1:end-1)", dpi=500)
 savefig("water_conservation_per_step.png") 
 
 # Cumulative error over time
@@ -345,7 +336,9 @@ savefig("numerical_vs_approximated_analytic_soln.png")
 
 # Check water conservation with analyitc soln
 plot(sol.t, sol_FE_1-sol_exact,dpi=500)
-#savefig("error.png") 
+savefig("error.png") 
+
+# Eplain error Euler 2,3
 
 # Compare to analytic soln
 #=
@@ -353,27 +346,16 @@ l2norm = sqrt(sum((matlab_soln .- sol.u)^2))
 plot(sol,linewidth=2,xaxis="t",label=["θ [rad]" "ω [rad/s]"],layout=(2,1))
 =#
 
-# Error : compare to approx
-
-# Setting T=0, initial pressures in pools to 0 (saturation), and pressure in roots to something very negative (very dry) and see if the pools drain to soil, so negative flow rates. Pools should eventually empty out completely
-
-# Setting T=0, pressure in roots to 0, pools to very negative, and see if they fill up, should see positive flow rates
-
 # Plot with increasing number of compartments
-# aim to show convergence
 
-# Plot with increasing number of roots, different depths
+# Plot with increasing number of roots
 
 # Compare model to data
 
 # Compare model to plot in a paper
 
-# Hook up to soil
+# Assessing that the error you get from a particular integrator scales in a certain way with dt - you could do this, but we trust OrdinaryDiffEq so I dont think we need to. this might be useful if you coded it up yourself, though
 
-# Soil model, lab experiment (?)
+# Setting T=0, initial pressures in pools to 0 (saturation), and pressure in roots to something very negative (very dry) and see if the pools drain to soil, so negative flow rates. Pools should eventually empty out completely
 
-# Ask Yujie about tests he's done with data
-
-# Change the boundary condition to a pressure one (VPD) 
-
-=#
+# Setting T=0, pressure in roots to 0, pools to very negative, and see if they fill up, should see positive flow rates
