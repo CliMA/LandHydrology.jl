@@ -1,13 +1,12 @@
 module Simulations
 
 using DiffEqBase
-using UnPack: @unpack
-using Printf
 
 # using ClimaAtmos.Callbacks
 using LandHydrology.Models: AbstractModel
 using LandHydrology.SoilInterface: make_rhs
 using ClimaCore: Fields
+using DocStringExtensions
 
 import DiffEqBase: step!
 

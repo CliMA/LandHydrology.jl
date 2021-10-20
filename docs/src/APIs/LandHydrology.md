@@ -15,4 +15,5 @@ LandHydrology.Domains.AbstractVerticalDomain
 
 ```@docs
 LandHydrology.Models.AbstractModel
+LandHydrology.Models.default_initial_conditions
 ```

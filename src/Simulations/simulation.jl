@@ -1,20 +1,19 @@
 """
     struct Simulation <: AbstractSimulation
-        # a LandHydrology model
-        model::AbstractModel
-        # a DiffEqBase.jl integrator used for time
-        # stepping the simulation
-        integrator::DiffEqBase.DEIntegrator
-        # user defined callback operations 
-        callbacks::Union{DiffEqBase.CallbackSet, DiffEqBase.DiscreteCallback, Nothing}
-    end
+
 A simulation wraps an abstract LandHydrology `model` containing 
 equation specifications and an instance of an `integrator` used for
 time integration of the discretized model PDE.
+
+# Fields
+$(DocStringExtensions.FIELDS)
 """
 struct Simulation{ML <: AbstractModel} <: AbstractSimulation
+    "A LandHydrology model"
     model::ML
+    "a DiffEqBase.jl integrator used for time"
     integrator::DiffEqBase.DEIntegrator
+    "user defined callback operations"
     callbacks::Union{
         DiffEqBase.CallbackSet,
         DiffEqBase.DiscreteCallback,

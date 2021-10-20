@@ -36,4 +36,5 @@ SoilComponentBC
 ## Initial Conditions
 ```@docs
 set_initial_state
+default_initial_conditions
 ```
