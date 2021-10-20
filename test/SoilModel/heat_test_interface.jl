@@ -59,6 +59,9 @@
         soil_param_set = msp,
         earth_param_set = param_set,
     )
+
+    # initial conditions
+    @test_throws ErrorException default_initial_conditions(soil_model)
     function energy_ic(z, model)
         T = 0.0
         θ_i = 0.0

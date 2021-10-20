@@ -65,6 +65,7 @@
     )
 
     # initial conditions
+    @test_throws ErrorException default_initial_conditions(soil_model)
     function initial_conditions(z, model)
         θ_i = 0.0
         θ_l = 0.494
@@ -173,7 +174,7 @@ end
     )
 
     # initial conditions
-
+    @test_throws ErrorException default_initial_conditions(soil_model)
     function ic(z, model)
         θ_i = 0.0
         θ_l = 0.1
