@@ -1,8 +1,6 @@
 using CLIMAParameters
 using CLIMAParameters.Planet: ρ_cloud_liq, ρ_cloud_ice, cp_l, cp_i, T_0, LH_f0
 using CLIMAParameters.Atmos.Microphysics: K_therm
-struct EarthParameterSet <: AbstractEarthParameterSet end
-const param_set = EarthParameterSet()
 
 @testset "soil heat params" begin
     FT = Float64
