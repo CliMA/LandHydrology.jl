@@ -124,23 +124,18 @@ at half of porosity.
 function Models.default_initial_conditions(
     model::SoilModel{f, dm, SoilEnergyModel, SoilHydrologyModel{f}},
 ) where {f, dm}
-    space_c, _ = make_function_space(model.domain)
-    FT = Spaces.undertype(space_c)
-    T0 = FT(T_0(model.earth_param_set))
-    ϑ_l = Fields.zeros(FT, space_c) .+ FT(0.5 * model.soil_param_set.ν)
-    θ_i = Fields.zeros(FT, space_c)
-
-    ρc_s =
-        volumetric_heat_capacity.(
-            ϑ_l,
-            θ_i,
-            model.soil_param_set.ρc_ds,
-            Ref(model.earth_param_set),
-        )
-    ρe_int =
-        volumetric_internal_energy.(θ_i, ρc_s, T0, Ref(model.earth_param_set))
-    Y_init = Fields.FieldVector(ϑ_l = ϑ_l, θ_i = θ_i, ρe_int = ρe_int)
-    return Y_init
+    function ic(z::f, m::SoilModel)
+        param_set = model.earth_param_set
+        T = f(273.16)
+        θ_i = f(0.0)
+        θ_l = f(0.5) * model.soil_param_set.ν
+        ρcds = model.soil_param_set.ρc_ds
+        ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρcds, param_set)
+        ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, param_set)
+        return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
+    end
+    t0 = f(0.0)
+    return initialize_states(model, ic, t0)
 end
 
 function Models.default_initial_conditions(model::SoilModel)
