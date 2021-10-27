@@ -59,6 +59,9 @@
         soil_param_set = msp,
         earth_param_set = param_set,
     )
+
+    # initial conditions
+    @test_throws ErrorException default_initial_conditions(soil_model)
     function energy_ic(z, model)
         T = 0.0
         θ_i = 0.0
@@ -73,18 +76,22 @@
         return (; ρe_int = ρe_int)
     end
     Y, Ya = initialize_states(soil_model, energy_ic, t0)
-    soil_rhs! = make_rhs(soil_model)
-    prob = ODEProblem(soil_rhs!, Y, (t0, tf), Ya)
-
-    # solve simulation
-    sol = solve(
-        prob,
+    soil_sim = Simulation(
+        soil_model,
         SSPRK33(),
+        Y_init = Y,
         dt = dt,
+        tspan = (t0, tf),
+        Ya_init = Ya,
         saveat = 60 * dt,
         progress = true,
         progress_message = (dt, u, p, t) -> t,
     )
+
+    # solve simulation
+    @test step!(soil_sim) isa Nothing # either error or integration runs
+    run!(soil_sim)
+    sol = soil_sim.integrator.sol
     t = sol.t
     z = parent(Ya.zc)[:]
     num =

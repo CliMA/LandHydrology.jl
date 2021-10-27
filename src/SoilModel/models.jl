@@ -112,5 +112,35 @@ Base.@kwdef struct SoilModel{
 end
 
 
+"""
+    default_initial_conditions(model::SoilModel{f, dm, SoilEnergyModel{f}, SoilHydrologyModel{f}})
+
+Returns a default set of initial conditions for the soil.
+
+The default is an isothermal soil, at the reference temperature T0,
+no ice, and a volumetric water fraction constant throughout the domain,
+at half of porosity.
+"""
+function Models.default_initial_conditions(
+    model::SoilModel{f, dm, SoilEnergyModel, SoilHydrologyModel{f}},
+) where {f, dm}
+    function ic(z::f, m::SoilModel)
+        param_set = model.earth_param_set
+        T = f(273.16)
+        θ_i = f(0.0)
+        θ_l = f(0.5) * model.soil_param_set.ν
+        ρcds = model.soil_param_set.ρc_ds
+        ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρcds, param_set)
+        ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, param_set)
+        return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
+    end
+    t0 = f(0.0)
+    return initialize_states(model, ic, t0)
+end
+
+function Models.default_initial_conditions(model::SoilModel)
+    error("No default IC exist for this type of soil model.")
+end
+
 include("boundary_conditions.jl")
 include("right_hand_side.jl")
