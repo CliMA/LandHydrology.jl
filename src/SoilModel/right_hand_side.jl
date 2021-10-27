@@ -203,7 +203,8 @@ function make_rhs(
         # Parameters
         sp = model.soil_param_set
         param_set = model.earth_param_set
-        @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
+        @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen, κ_dry = sp
+        tm = energy.conductivity_model
 
         # Compute center values of everything
         ν_eff = ν .- θ_i
@@ -211,9 +212,8 @@ function make_rhs(
 
         ρc_s = volumetric_heat_capacity.(θ_l, θ_i, ρc_ds, Ref(param_set))
         T = temperature_from_ρe_int.(ρe_int, θ_i, ρc_s, Ref(param_set))
-        κ_dry = k_dry(param_set, sp)
         S_r = relative_saturation.(θ_l, θ_i, ν)
-        kersten = kersten_number.(θ_i, S_r, Ref(sp))
+        kersten = kersten_number.(θ_i, S_r, Ref(tm), Ref(sp))
         κ_sat =
             saturated_thermal_conductivity.(
                 θ_l,
@@ -284,17 +284,17 @@ function make_rhs(
         sp = model.soil_param_set
         param_set = model.earth_param_set
         hm = hydrology.hydraulic_model
+        tm = energy.conductivity_model
         @unpack θr = hm
-        @unpack ν, S_s, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
+        @unpack ν, S_s, ρc_ds, κ_sat_unfrozen, κ_sat_frozen, κ_dry = sp
 
         # Compute center values of everything
         ν_eff = ν .- θ_i
         θ_l = volumetric_liquid_fraction.(ϑ_l, ν_eff)
         ρc_s = volumetric_heat_capacity.(θ_l, θ_i, ρc_ds, Ref(param_set))
         T = temperature_from_ρe_int.(ρe_int, θ_i, ρc_s, Ref(param_set))
-        κ_dry = k_dry(param_set, sp)
         S_r = relative_saturation.(θ_l, θ_i, ν)
-        kersten = kersten_number.(θ_i, S_r, Ref(sp))
+        kersten = kersten_number.(θ_i, S_r, Ref(tm), Ref(sp))
         κ_sat =
             saturated_thermal_conductivity.(
                 θ_l,

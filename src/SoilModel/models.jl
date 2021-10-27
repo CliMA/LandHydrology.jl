@@ -14,7 +14,9 @@ heat transfer in soil by solving the heat partial differential equation.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilEnergyModel <: AbstractSoilComponentModel end
+Base.@kwdef struct SoilEnergyModel{FT <: AbstractFloat} <: AbstractSoilComponentModel
+    conductivity_model::BallandArp{FT} = BallandArp{FT}()
+end
 
 """
     SoilHydrologyModel <: AbstractSoilComponentModel

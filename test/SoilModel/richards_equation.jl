@@ -14,19 +14,9 @@
     ρc_ds = FT(2e6)
     #collect all params
     msp = SoilParams{FT}(
-        ν,
-        S_s,
-        0.0,
-        0.0,
-        0.0,
-        ρc_ds,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
+        ν = ν,
+        S_s = S_s,
+        ρc_ds = ρc_ds,
     )
 
 
@@ -121,19 +111,9 @@ end
     ρc_ds = FT(2e6)
     #collect all params
     msp = SoilParams{FT}(
-        ν,
-        S_s,
-        0.0,
-        0.0,
-        0.0,
-        ρc_ds,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
+        ν = ν,
+        S_s = S_s,
+        ρc_ds = ρc_ds,
     )
 
 

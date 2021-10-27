@@ -367,15 +367,14 @@ function vertical_flux(
     face::Symbol,
 )
     @unpack ϑ_l, θ_i, T = X_cf # [center, face]
-    @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = soil.soil_param_set
+    @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen,κ_dry = soil.soil_param_set
     param_set = soil.earth_param_set
-    κ_dry = k_dry(param_set, soil.soil_param_set)
-
+    tm = component.conductivity_model
     ν_eff = ν .- θ_i
     θ_l = volumetric_liquid_fraction.(ϑ_l, ν_eff)
 
     S_r = relative_saturation.(θ_l, θ_i, ν)
-    kersten = kersten_number.(θ_i, S_r, Ref(soil.soil_param_set))
+    kersten = kersten_number.(θ_i, S_r, Ref(tm), Ref(soil.soil_param_set))
     κ_sat =
         saturated_thermal_conductivity.(θ_l, θ_i, κ_sat_unfrozen, κ_sat_frozen)
     κ = thermal_conductivity.(κ_dry, kersten, κ_sat) # at face

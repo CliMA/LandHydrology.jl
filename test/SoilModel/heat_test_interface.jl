@@ -7,25 +7,19 @@
     ρc_ds = FT(0.43314518988433487)
     κ_solid = FT(8.0)
     ρp = FT(2700.0)
+    
+    κ_dry = dry_soil_thermal_conductivity(ρp, param_set, κ_solid, ν)
     κ_sat_unfrozen = FT(0.57)
     κ_sat_frozen = FT(2.29)
-    a = FT(0.24)
-    b = FT(18.1)
-    κ_dry_parameter = FT(0.053)
     msp = SoilParams{FT}(
-        ν,
-        0.0,
-        ν_ss_gravel,
-        ν_ss_om,
-        ν_ss_quartz,
-        ρc_ds,
-        κ_solid,
-        ρp,
-        κ_sat_unfrozen,
-        κ_sat_frozen,
-        a,
-        b,
-        κ_dry_parameter,
+        ν = ν,
+        ν_ss_gravel = ν_ss_gravel,
+        ν_ss_om = ν_ss_om,
+        ν_ss_quartz = ν_ss_quartz,
+        ρc_ds = ρc_ds,
+        κ_dry = κ_dry,
+        κ_sat_unfrozen =κ_sat_unfrozen,
+        κ_sat_frozen=κ_sat_frozen,
     )
 
 
@@ -53,7 +47,7 @@
     # create model
     soil_model = SoilModel(
         domain = domain,
-        energy_model = SoilEnergyModel(),
+        energy_model = SoilEnergyModel{FT}(),
         hydrology_model = PrescribedHydrologyModel(),
         boundary_conditions = bc,
         soil_param_set = msp,

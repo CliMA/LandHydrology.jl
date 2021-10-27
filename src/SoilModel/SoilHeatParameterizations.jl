@@ -12,6 +12,7 @@ using CLIMAParameters
 using CLIMAParameters.Planet: ρ_cloud_liq, ρ_cloud_ice, cp_l, cp_i, T_0, LH_f0
 using CLIMAParameters.Atmos.Microphysics: K_therm
 using DocStringExtensions
+using UnPack
 
 export volumetric_heat_capacity,
     volumetric_internal_energy,
@@ -21,13 +22,20 @@ export volumetric_heat_capacity,
     kersten_number,
     volumetric_internal_energy_liq,
     temperature_from_ρe_int,
-    k_solid,
-    k_dry,
-    ksat_unfrozen,
-    ksat_frozen
+    soil_solids_thermal_conductivity,
+    dry_soil_thermal_conductivity,
+    saturated_unfrozen_thermal_conductivity,
+    saturated_frozen_thermal_conductivity,
+    BallandArp
 
+abstract type AbstractConductivityModel{FT <: AbstractFloat} end
 
+Base.@kwdef struct BallandArp{FT} <: AbstractConductivityModel{FT}
+    a::FT = 0.24
+    b::FT = 18.1
+end
 
+    
 """
     function temperature_from_ρe_int(
         ρe_int::FT,
@@ -144,21 +152,20 @@ end
     kersten_number(
         θ_i::FT,
         S_r::FT,
+        thermal_model::BallandArp{FT},
         soil_param_functions::PS
-    ) where {FT, PS}
+    ) where {FT,PS}
 
 Compute the expression for the Kersten number.
 """
 function kersten_number(
     θ_i::FT,
     S_r::FT,
+    thermal_model::BallandArp{FT},
     soil_param_functions::PS,
 ) where {FT, PS}
-    a = soil_param_functions.a
-    b = soil_param_functions.b
-    ν_ss_om = soil_param_functions.ν_ss_om
-    ν_ss_quartz = soil_param_functions.ν_ss_quartz
-    ν_ss_gravel = soil_param_functions.ν_ss_gravel
+    @unpack a,b = thermal_model
+    @unpack ν_ss_om, ν_ss_quartz, ν_ss_gravel = soil_param_functions
 
     if θ_i < eps(FT)
         K_e =
@@ -207,7 +214,7 @@ function volumetric_internal_energy_liq(
 end
 
 """
-    function k_solid(
+    function soil_solids_thermal_conductivity(
         ν_ss_om::FT,
         ν_ss_quartz::FT,
         κ_quartz::FT,
@@ -220,7 +227,7 @@ The `_ss_` subscript denotes that the volumetric fractions of the soil
 components are referred to the soil solid components, not including the pore
 space.
 """
-function k_solid(
+function soil_solids_thermal_conductivity(
     ν_ss_om::FT,
     ν_ss_quartz::FT,
     κ_quartz::FT,
@@ -234,62 +241,61 @@ end
 
 
 """
-    function ksat_frozen(
+    function saturated_frozen_thermal_conductivity(
         κ_solid::FT,
-        porosity::FT,
+        ν::FT,
         κ_ice::FT
     ) where {FT}
 
 Computes the thermal conductivity for saturated frozen soil.
 """
-function ksat_frozen(κ_solid::FT, porosity::FT, κ_ice::FT) where {FT}
-    return κ_solid^(FT(1.0) - porosity) * κ_ice^(porosity)
+function saturated_frozen_thermal_conductivity(κ_solid::FT, ν::FT, κ_ice::FT) where {FT}
+    return κ_solid^(FT(1.0) - ν) * κ_ice^(ν)
 end
 
 """
-    function ksat_unfrozen(
+    function saturated_unfrozen_thermal_conductivity(
         κ_solid::FT,
-        porosity::FT,
+        ν::FT,
         κ_l::FT
     ) where {FT}
 
 Computes the thermal conductivity for saturated unfrozen soil.
 """
-function ksat_unfrozen(κ_solid::FT, porosity::FT, κ_l::FT) where {FT}
-    return κ_solid^(FT(1.0) - porosity) * κ_l^porosity
+function saturated_unfrozen_thermal_conductivity(κ_solid::FT, ν::FT, κ_l::FT) where {FT}
+    return κ_solid^(FT(1.0) - ν) * κ_l^ν
 end
 
 """
-    function ρb_ss(porosity::FT, ρp::FT) where {FT}
+    function ρb_ss(ν::FT, ρp::FT) where {FT}
 
 Computes the dry soil bulk density from the dry soil particle
 density.
 """
-function ρb_ss(porosity::FT, ρp::FT) where {FT}
-    return (FT(1.0) - porosity) * ρp
+function ρb_ss(ν::FT, ρp::FT) where {FT}
+    return (FT(1.0) - ν) * ρp
 end
 
 """
-    function k_dry(
+    function dry_soil_thermal_conductivity(
         param_set::AbstractParameterSet
         soil_param_functions::PS,
     ) where {PS}
 
-Computes the thermal conductivity of dry soil.
+Computes the thermal conductivity of dry soil using the
+Balland and Arp expression.
 """
-function k_dry(
+function dry_soil_thermal_conductivity(
+    ρp::FT,
     param_set::AbstractParameterSet,
-    soil_param_functions::PS,
-) where {PS}
-    κ_dry_parameter = soil_param_functions.κ_dry_parameter
-    FT = typeof(κ_dry_parameter)
-    porosity = soil_param_functions.ν
-    ρp = soil_param_functions.ρp
-    κ_solid = soil_param_functions.κ_solid
+    κ_solid::FT,
+    ν::FT,
+) where {FT}
     κ_air = FT(K_therm(param_set))
-    ρb_val = ρb_ss(porosity, ρp)
-    numerator = (κ_dry_parameter * κ_solid - κ_air) * ρb_val + κ_air * ρp
-    denom = ρp - (FT(1.0) - κ_dry_parameter) * ρb_val
+    ρb = ρb_ss(ν, ρp)
+    a = FT(0.053)
+    numerator = (a * κ_solid - κ_air) * ρb + κ_air * ρp
+    denom = ρp - (FT(1.0) - a) * ρb
     return numerator / denom
 end
 
