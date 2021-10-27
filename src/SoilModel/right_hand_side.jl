@@ -34,10 +34,12 @@ function make_rhs(model::SoilModel)
     update_aux_en! = make_update_aux(model.energy_model)
     update_aux_hydr! = make_update_aux(model.hydrology_model)
     rhs_soil! = make_rhs(model.energy_model, model.hydrology_model, model)
+    source_soil! = make_source(model)
     function rhs!(dY, Y, Ya, t)
         update_aux_en!(Ya, t)
         update_aux_hydr!(Ya, t)
         rhs_soil!(dY, Y, Ya, t)
+        source_soil!(dY,Y,Ya,t)
         return dY
     end
     return rhs!
@@ -257,7 +259,6 @@ function make_rhs(
             ),
         )
         @. dρe_int = -divf2c_heat(-interpc2f(κ) * gradc2f_heat(T))
-        return dY
     end
     return rhs!
 end
@@ -358,12 +359,7 @@ function make_rhs(
         @. dϑ_l = -divf2c_water(-interpc2f(K) * gradc2f_water(h)) #Richards equation
         dθ_i .= zero_field(FT, cspace)
 
-        @. dρe_int =
-            -divf2c_heat(
-                -interpc2f(κ) * gradc2f_heat(T) -
-                interpc2f(ρe_int_l * K) * gradc2f_water(h),
-            )
-        return dY
+        @. dρe_int = -divf2c_heat(-interpc2f(κ) * gradc2f_heat(T) -interpc2f(ρe_int_l * K) * gradc2f_water(h))
     end
     return rhs!
 end

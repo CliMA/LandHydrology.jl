@@ -48,6 +48,7 @@
 
     zmax = FT(0)
     zmin = FT(-2)
+    Δz = FT((zmax-zmin)/n)
     domain = Column(FT, zlim = (zmin, zmax), nelements = n)
 
     #Boundary conditions
@@ -76,6 +77,7 @@
             hydraulic_model = hydraulics_model,
         ),
         boundary_conditions = bc,
+        #sources = (PhaseChange{FT}(Δz = Δz),),
         soil_param_set = msp,
         earth_param_set = param_set,
     )

@@ -80,7 +80,7 @@ end
 
 
 """
-    SoilModel{FT, domain, em <: AbstractSoilModel, hm <: AbstractSoilModel, bc, A,B}
+    SoilModel{domain, em <: AbstractSoilModel, hm <: AbstractSoilModel, bc, A,B}
 
 The model type for the soil model.
 
@@ -88,8 +88,7 @@ The model type for the soil model.
 $(DocStringExtensions.FIELDS)
 """
 Base.@kwdef struct SoilModel{
-    FT,
-    dm <: AbstractVerticalDomain{FT},
+    dm,
     em <: AbstractSoilComponentModel,
     hm <: AbstractSoilComponentModel,
     bc,
@@ -103,6 +102,8 @@ Base.@kwdef struct SoilModel{
     hydrology_model::hm
     "Boundary conditions tuple"
     boundary_conditions::bc
+    "Tuple of sources eventually"
+    sources::AbstractLandSource = NoSource()
     "Soil parameters"
     soil_param_set::A
     "Earth parameter set"
@@ -112,5 +113,3 @@ Base.@kwdef struct SoilModel{
 end
 
 
-include("boundary_conditions.jl")
-include("right_hand_side.jl")
