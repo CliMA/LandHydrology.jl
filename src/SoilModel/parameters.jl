@@ -3,7 +3,7 @@ export SoilParams
 abstract type ParameterStructure{FT <: AbstractFloat} end
 
 """
-    struct SoilParams{FT} <: ParameterStructure{FT}
+    SoilParams{FT} <: ParameterStructure{FT}
 """
 struct SoilParams{FT} <: ParameterStructure{FT}
     ν::FT

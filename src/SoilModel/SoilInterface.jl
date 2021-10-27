@@ -5,6 +5,7 @@ using CLIMAParameters.Planet: ρ_cloud_liq, ρ_cloud_ice, T_freeze, grav, LH_f0
 using DocStringExtensions
 using UnPack
 
+using LandHydrology: EarthParameterSet
 using LandHydrology.Domains: AbstractVerticalDomain, make_function_space, Column
 using LandHydrology.Models: AbstractModel, AbstractLandSource, NoSource
 include("SoilWaterParameterizations.jl")

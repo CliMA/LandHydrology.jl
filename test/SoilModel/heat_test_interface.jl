@@ -59,11 +59,10 @@
         soil_param_set = msp,
         earth_param_set = param_set,
     )
-    function energy_ic(z, t0, model)
+    function energy_ic(z, model)
         T = 0.0
         θ_i = 0.0
         θ_l = 0.0
-        ρc_ds = model.soil_param_set.ρc_ds
         ρc_s = volumetric_heat_capacity(
             θ_l,
             θ_i,
@@ -71,17 +70,15 @@
             model.earth_param_set,
         )
         ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, model.earth_param_set)
-        return (ϑ_l = 0.0, θ_i = 0.0, ρe_int = ρe_int)
+        return (; ρe_int = ρe_int)
     end
-    Y = set_initial_state(soil_model, energy_ic, t0)
+    Y, Ya = initialize_states(soil_model, energy_ic, t0)
     soil_rhs! = make_rhs(soil_model)
-    prob = ODEProblem(soil_rhs!, Y, (t0, tf), [])
+    prob = ODEProblem(soil_rhs!, Y, (t0, tf), Ya)
 
     # solve simulation
     sol = solve(
         prob,
-        #TsitPap8(), doesnt work, ArgumentError: broadcasting over dictionaries and `NamedTuple`s is reserved
-        #        CarpenterKennedy2N54(), # this does work
         SSPRK33(),
         dt = dt,
         saveat = 60 * dt,
@@ -89,19 +86,17 @@
         progress_message = (dt, u, p, t) -> t,
     )
     t = sol.t
-    space_c, _ = make_function_space(domain)
-    zc = Fields.coordinate_field(space_c)
-    z = parent(zc)[:]
+    z = parent(Ya.zc)[:]
     num =
         exp.(sqrt(ω / 2) * (1 + im) * (1 .- z)) .-
         exp.(-sqrt(ω / 2) * (1 + im) * (1 .- z))
     denom = exp(sqrt(ω / 2) * (1 + im)) - exp.(-sqrt(ω / 2) * (1 + im))
     analytic_soln = real(num .* A * exp(im * ω * tf) / denom)
-    ρe_intf = parent(sol.u[end].ρe_int)[:]
-    θ_lf = parent(sol.u[end].ϑ_l)[:]
-    θ_if = parent(sol.u[end].θ_i)[:]
-    ρc_s = volumetric_heat_capacity.(θ_lf, θ_if, ρc_ds, Ref(param_set))
-    Tfinal = temperature_from_ρe_int.(ρe_intf, θ_if, ρc_s, Ref(param_set))
+    ρe_intf = parent(sol.u[end].soil.ρe_int)[:]
+    θ_lf = soil_model.hydrology_model.ϑ_l_profile.(z, tf)
+    θ_if = soil_model.hydrology_model.ϑ_l_profile.(z, tf)
+    ρc_sf = volumetric_heat_capacity.(θ_lf, θ_if, ρc_ds, Ref(param_set))
+    Tfinal = temperature_from_ρe_int.(ρe_intf, θ_if, ρc_sf, Ref(param_set))
     MSE = mean((analytic_soln .- Tfinal) .^ 2.0)
-    @test MSE < 1e-3
+    @test MSE < 1e-6
 end

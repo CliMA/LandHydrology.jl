@@ -1,7 +1,7 @@
 module Models
 export AbstractModel, AbstractLandSource, NoSource
 """
-    abstract type AbstractModel
+    AbstractModel
 
 An abstract type for models.
 

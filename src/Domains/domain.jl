@@ -58,8 +58,8 @@ column domain.
 function make_function_space(domain::Column{FT}) where {FT}
     column = ClimaCore.Domains.IntervalDomain(
         ClimaCore.Geometry.ZPoint{FT}(domain.zlim[1]),
-        ClimaCore.Geometry.ZPoint{FT}(domain.zlim[2]),
-        domain.boundary_tags,
+        ClimaCore.Geometry.ZPoint{FT}(domain.zlim[2]);
+        boundary_tags = domain.boundary_tags,
     )
     mesh = Meshes.IntervalMesh(column; nelems = domain.nelements)
     center_space = Spaces.CenterFiniteDifferenceSpace(mesh)
