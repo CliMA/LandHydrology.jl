@@ -207,26 +207,42 @@ end
         earth_param_set = param_set,
     )
 
-    Y_init = default_initial_conditions(soil_model)
-    @test parent(Y_init.ϑ_l)[:] ≈ zeros(20) .+ 0.25
-    @test parent(Y_init.θ_i)[:] ≈ zeros(20) .+ 0.0
+    Y_init, Ya_init = default_initial_conditions(soil_model)
+    @test parent(Ya_init.zc)[:] ≈ Array(-1.95:0.1:-0.05)
+    @test parent(Y_init.soil.ϑ_l)[:] ≈ zeros(20) .+ 0.25
+    @test parent(Y_init.soil.θ_i)[:] ≈ zeros(20) .+ 0.0
     T0 = FT(T_0(soil_model.earth_param_set))
 
     ρc_s =
         volumetric_heat_capacity.(
-            Y_init.ϑ_l,
-            Y_init.θ_i,
+            Y_init.soil.ϑ_l,
+            Y_init.soil.θ_i,
             soil_model.soil_param_set.ρc_ds,
             Ref(soil_model.earth_param_set),
         )
     ρe_int =
         volumetric_internal_energy.(
-            Y_init.θ_i,
+            Y_init.soil.θ_i,
             ρc_s,
             T0,
             Ref(soil_model.earth_param_set),
         )
-    @test parent(Y_init.ρe_int)[:] ≈ parent(ρe_int)[:]
-
-
+    @test parent(Y_init.soil.ρe_int)[:] ≈ parent(ρe_int)[:]
+    dY = similar(Y_init)
+    soil_rhs! = make_rhs(soil_model)
+    soil_rhs!(dY, Y_init, Ya_init, 0.0)
+    @test parent(dY.soil.θ_i)[:] ≈ zeros(20)
+    @test parent(dY.soil.ρe_int)[:] ≈ zeros(20)
+    S = effective_saturation(ν, 0.25, θ_r)
+    K = hydraulic_conductivity(
+        soil_model.hydrology_model.hydraulic_model,
+        S,
+        1.0,
+        1.0,
+    )
+    expected_flux = zeros(21) .- K # -K∇h
+    expected_flux[end] = 0.0
+    expected_flux[1] = 0.0
+    minus_div_flux = -(expected_flux[2:end] .- expected_flux[1:(end - 1)]) / 0.1
+    @test sum(parent(dY.soil.ϑ_l)[:] .- minus_div_flux) < eps(FT)
 end

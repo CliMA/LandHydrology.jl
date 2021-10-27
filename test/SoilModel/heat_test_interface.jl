@@ -82,7 +82,7 @@
         Y_init = Y,
         dt = dt,
         tspan = (t0, tf),
-        p = Ya,
+        Ya_init = Ya,
         saveat = 60 * dt,
         progress = true,
         progress_message = (dt, u, p, t) -> t,
