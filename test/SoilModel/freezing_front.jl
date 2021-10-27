@@ -1,8 +1,4 @@
 using ClimaCore: Fields
-using CLIMAParameters
-struct EarthParameterSet <: AbstractEarthParameterSet end
-const param_set = EarthParameterSet()
-
 using UnPack
 using OrdinaryDiffEq:
     ODEProblem,
@@ -11,6 +7,8 @@ using OrdinaryDiffEq:
     SSPRK33,
     SSPRK73
 using LandHydrology
+using LandHydrology: EarthParameterSet
+const param_set = EarthParameterSet()
 using LandHydrology.Domains: Column, make_function_space
 using LandHydrology.SoilInterface
 using LandHydrology.SoilInterface.SoilWaterParameterizations
@@ -108,7 +106,7 @@ soil_model = SoilModel(
 )
 
 # initial conditions
-function initial_conditions(z::FT, t0::FT, model::SoilModel)
+function initial_conditions(z::FT, model::SoilModel)
     param_set = model.earth_param_set
     T = 279.85
     θ_i = 0.0
@@ -118,9 +116,10 @@ function initial_conditions(z::FT, t0::FT, model::SoilModel)
     ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, param_set)
     return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
 end
-Y = set_initial_state(soil_model, initial_conditions, 0.0)
+Y, Ya = initialize_states(soil_model, initial_conditions, t0)
+
 soil_rhs! = make_rhs(soil_model)
-prob = ODEProblem(soil_rhs!, Y, (t0, tf), [])
+prob = ODEProblem(soil_rhs!, Y, (t0, tf), Ya)
 
 # solve simulation
 sol = solve(
@@ -132,9 +131,8 @@ sol = solve(
     progress_message = (dt, u, p, t) -> t,
 )
 
-space_c, _ = make_function_space(domain)
-zc = Fields.coordinate_field(space_c)
-z = parent(zc)[:]
+
+z = parent(Ya.zc)
 
 dataset = ArtifactWrapper(
     @__DIR__,
@@ -157,8 +155,8 @@ mask_50h = hours .== 50;
 
 plot_12h =
     scatter(vwc[mask_12h], -depth[mask_12h], label = "", color = "purple")
-vlf = parent(sol.u[13].ϑ_l)[:]
-vif = parent(sol.u[13].θ_i)[:]
+vlf = parent(sol.u[13].soil.ϑ_l)[:]
+vif = parent(sol.u[13].soil.θ_i)[:]
 vwf = vif .+ vlf
 plot!(
     vwf,
@@ -186,8 +184,8 @@ plot!(ylabel = "Depth (m)");
 
 plot_24h =
     scatter(vwc[mask_24h], -depth[mask_24h], label = "Data", color = "purple")
-vlf = parent(sol.u[25].ϑ_l)[:]
-vif = parent(sol.u[25].θ_i)[:]
+vlf = parent(sol.u[25].soil.ϑ_l)[:]
+vif = parent(sol.u[25].soil.θ_i)[:]
 vwf = vif .+ vlf
 plot!(
     vwf,
@@ -214,8 +212,8 @@ plot!(xticks = [0.2, 0.3, 0.4, 0.5]);
 
 plot_50h =
     scatter(vwc[mask_50h], -depth[mask_50h], label = "", color = "purple")
-vlf = parent(sol.u[51].ϑ_l)[:]
-vif = parent(sol.u[51].θ_i)[:]
+vlf = parent(sol.u[51].soil.ϑ_l)[:]
+vif = parent(sol.u[51].soil.θ_i)[:]
 vwf = vif .+ vlf
 plot!(
     vwf,
