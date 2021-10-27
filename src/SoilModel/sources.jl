@@ -47,11 +47,11 @@ end
 function add_source(source::PhaseChange{FT}, model::SoilModel) where {FT}
 
     function source!(dY,Y,p,t)
-        dϑ_l = dY.ϑ_l
-        dθ_i = dY.θ_i
-        ϑ_l = Y.ϑ_l
-        θ_i = Y.θ_i
-        ρe_int = Y.ρe_int
+        dϑ_l = dY.soil.ϑ_l
+        dθ_i = dY.soil.θ_i
+        ϑ_l = Y.soil.ϑ_l
+        θ_i = Y.soil.θ_i
+        ρe_int = Y.soil.ρe_int
         
         #parameters
         hydrology = model.hydrology_model

@@ -1,6 +1,3 @@
-#  K = 0
-# T < T_freeze in part of domain
-# test that rhs = source
 @testset "Phase Change" begin
     FT = Float64
     ν = FT(0.5)
@@ -83,7 +80,7 @@
     )
     
     # initial conditions
-    function initial_conditions(z::FT, t0::FT, model::SoilModel)
+    function initial_conditions(z::FT, model::SoilModel)
         param_set = model.earth_param_set
         T = 270.0
         θ_i = 0.0
@@ -93,7 +90,7 @@
         ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, param_set)
         return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
     end
-    Y,Ya = set_initial_state(soil_model, initial_conditions, 0.0)
+    Y,Ya = initialize_states(soil_model, initial_conditions, 0.0)
     soil_rhs! = make_rhs(soil_model)
     dY = similar(Y) .+ 0.0
     soil_rhs!(dY,Y,Ya,0.0)
