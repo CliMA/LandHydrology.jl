@@ -1,5 +1,5 @@
 export VerticalFlux,
-    Dirichlet, FreeDrainage, SoilDomainBC, SoilComponentBC, NoBC
+    Dirichlet, FreeDrainage, SoilColumnBC, SoilComponentBC, NoBC
 abstract type AbstractBC end
 
 """
@@ -79,7 +79,7 @@ end
 
 
 """
-    SoilDomainBC{D, TBC, BBC}
+    SoilColumnBC{ TBC, BBC}
 
 A container holding the SoilComponentBC for each boundary face.
 
@@ -91,7 +91,7 @@ top, bottom, xleft, xright, yleft, yright.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilDomainBC{D, TBC, BBC}
+struct SoilColumnBC{TBC <: SoilComponentBC, BBC <: SoilComponentBC}
     "SoilComponentBC for the top of the domain"
     top::TBC
     "SoilComponentBC for the bottom of the domain"
@@ -99,13 +99,12 @@ struct SoilDomainBC{D, TBC, BBC}
 end
 
 
-function SoilDomainBC(
-    ::Column{FT};
+function SoilColumnBC(;
     top::SoilComponentBC = SoilComponentBC(),
     bottom::SoilComponentBC = SoilComponentBC(),
-) where {FT}
+)
     args = (top, bottom)
-    return SoilDomainBC{Column{FT}, typeof.(args)...}(args...)
+    return SoilColumnBC{typeof.(args)...}(args...)
 end
 
 

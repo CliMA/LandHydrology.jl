@@ -11,23 +11,8 @@
     vg_m = FT(1) - FT(1) / vg_n
     θ_r = FT(0)
 
-    ρc_ds = FT(2e6)
     #collect all params
-    msp = SoilParams{FT}(
-        ν,
-        S_s,
-        0.0,
-        0.0,
-        0.0,
-        ρc_ds,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-    )
+    msp = SoilParams{FT}(ν = ν, S_s = S_s)
 
 
     #Simulation and domain info
@@ -43,8 +28,7 @@
     #Boundary conditions
     top_water_flux = FT(0)
     bottom_water_flux = FT(0)
-    bc = SoilDomainBC(
-        domain;
+    bc = SoilColumnBC(;
         top = SoilComponentBC(hydrology = VerticalFlux(top_water_flux)),
         bottom = SoilComponentBC(hydrology = VerticalFlux(bottom_water_flux)),
     )
@@ -54,6 +38,7 @@
         vanGenuchten{FT}(n = vg_n, α = vg_α, Ksat = Ksat, θr = θ_r)
 
     soil_model = SoilModel(
+        FT;
         domain = domain,
         energy_model = PrescribedTemperatureModel(),
         hydrology_model = SoilHydrologyModel{FT}(
@@ -122,24 +107,7 @@ end
     vg_α = FT(2.7) # inverse meters
     vg_m = FT(1) - FT(1) / vg_n
     θ_r = FT(0.075)
-
-    ρc_ds = FT(2e6)
-    #collect all params
-    msp = SoilParams{FT}(
-        ν,
-        S_s,
-        0.0,
-        0.0,
-        0.0,
-        ρc_ds,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-        0.0,
-    )
+    msp = SoilParams{FT}(ν = ν, S_s = S_s)
 
 
     #Simulation and domain info
@@ -154,8 +122,7 @@ end
 
     #Boundary conditions
     top_state = (t) -> eltype(t)(0.267)
-    bc = SoilDomainBC(
-        domain;
+    bc = SoilColumnBC(;
         top = SoilComponentBC(hydrology = Dirichlet(top_state)),
         bottom = SoilComponentBC(hydrology = FreeDrainage()),
     )
@@ -163,6 +130,7 @@ end
         vanGenuchten{FT}(n = vg_n, α = vg_α, Ksat = Ksat, θr = θ_r)
     # create model
     soil_model = SoilModel(
+        FT;
         domain = domain,
         energy_model = PrescribedTemperatureModel(),
         hydrology_model = SoilHydrologyModel{FT}(

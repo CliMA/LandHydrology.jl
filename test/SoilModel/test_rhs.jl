@@ -10,6 +10,7 @@
     θ_ip(z, t) = 0.0
 
     soil_model = SoilModel(
+        FT;
         domain = domain,
         energy_model = PrescribedTemperatureModel(T_profile = Tp),
         hydrology_model = PrescribedHydrologyModel(
@@ -17,8 +18,6 @@
             θ_i_profile = θ_ip,
         ),
         boundary_conditions = nothing,
-        soil_param_set = nothing,
-        earth_param_set = nothing,
     )
     Ys = Dict()
     Y = Fields.FieldVector(; Ys...)
