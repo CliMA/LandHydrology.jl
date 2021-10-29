@@ -144,7 +144,7 @@ abstract type AbstractHydraulicsModel{FT <: AbstractFloat} end
 
 
 The necessary parameters for the van Genuchten hydraulic model; 
-defaults are for Yolo light clay.
+defaults are for loam, setting the residual water fraction to zero.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
@@ -160,9 +160,9 @@ struct vanGenuchten{FT} <: AbstractHydraulicsModel{FT}
     "Saturated hydraulic conductivity, m/s"
     Ksat::FT
     function vanGenuchten{FT}(;
-        n::FT = FT(1.43),
-        α::FT = FT(2.6),
-        Ksat::FT = FT(1e-6),
+        n::FT = FT(1.56),
+        α::FT = FT(3.6),
+        Ksat::FT = FT(2.9e-7),
         θr::FT = FT(0.0),
     ) where {FT}
         new(n, α, FT(1) - FT(1) / FT(n), θr, Ksat)

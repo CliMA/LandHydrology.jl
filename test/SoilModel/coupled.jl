@@ -9,7 +9,6 @@
     ν_ss_quartz = FT(0.92)
     ν_ss_om = FT(0.0)
     ν_ss_gravel = FT(0.0)
-    ρp = FT(2700)
     κ_quartz = FT(7.7) # W/m/K
     κ_minerals = FT(2.5) # W/m/K
     κ_om = FT(0.25) # W/m/K
@@ -19,24 +18,17 @@
     κ_sat_frozen = ksat_frozen(κ_solid, ν, κ_ice)
     κ_sat_unfrozen = ksat_unfrozen(κ_solid, ν, κ_liq)
     ρc_ds = FT((1 - ν) * 1.926e06)
-    a = FT(0.24)
-    b = FT(18.1)
-    κ_dry_parameter = FT(0.053)
     #collect all params
     msp = SoilParams{FT}(
-        ν,
-        S_s,
-        ν_ss_gravel,
-        ν_ss_om,
-        ν_ss_quartz,
-        ρc_ds,
-        κ_solid,
-        ρp,
-        κ_sat_unfrozen,
-        κ_sat_frozen,
-        a,
-        b,
-        κ_dry_parameter,
+        ν = ν,
+        S_s = S_s,
+        ν_ss_gravel = ν_ss_gravel,
+        ν_ss_om = ν_ss_om,
+        ν_ss_quartz = ν_ss_quartz,
+        ρc_ds = ρc_ds,
+        κ_solid = κ_solid,
+        κ_sat_unfrozen = κ_sat_unfrozen,
+        κ_sat_frozen = κ_sat_frozen,
     )
 
 
@@ -53,8 +45,7 @@
     #Boundary conditions
     top_flux = FT(0)
     bottom_flux = FT(0)
-    bc = SoilDomainBC(
-        domain;
+    bc = SoilColumnBC(;
         top = SoilComponentBC(
             hydrology = VerticalFlux(top_flux),
             energy = VerticalFlux(top_flux),
@@ -70,6 +61,7 @@
         vanGenuchten{FT}(n = vg_n, α = vg_α, Ksat = Ksat, θr = θ_r)
 
     soil_model = SoilModel(
+        FT;
         domain = domain,
         energy_model = SoilEnergyModel(),
         hydrology_model = SoilHydrologyModel{FT}(
@@ -136,7 +128,6 @@ end
     ν_ss_quartz = FT(0.92)
     ν_ss_om = FT(0.0)
     ν_ss_gravel = FT(0.0)
-    ρp = FT(2700)
     κ_quartz = FT(7.7) # W/m/K
     κ_minerals = FT(2.5) # W/m/K
     κ_om = FT(0.25) # W/m/K
@@ -146,24 +137,17 @@ end
     κ_sat_frozen = ksat_frozen(κ_solid, ν, κ_ice)
     κ_sat_unfrozen = ksat_unfrozen(κ_solid, ν, κ_liq)
     ρc_ds = FT((1 - ν) * 1.926e06)
-    a = FT(0.24)
-    b = FT(18.1)
-    κ_dry_parameter = FT(0.053)
     #collect all params
     msp = SoilParams{FT}(
-        ν,
-        S_s,
-        ν_ss_gravel,
-        ν_ss_om,
-        ν_ss_quartz,
-        ρc_ds,
-        κ_solid,
-        ρp,
-        κ_sat_unfrozen,
-        κ_sat_frozen,
-        a,
-        b,
-        κ_dry_parameter,
+        ν = ν,
+        S_s = S_s,
+        ν_ss_gravel = ν_ss_gravel,
+        ν_ss_om = ν_ss_om,
+        ν_ss_quartz = ν_ss_quartz,
+        ρc_ds = ρc_ds,
+        κ_solid = κ_solid,
+        κ_sat_unfrozen = κ_sat_unfrozen,
+        κ_sat_frozen = κ_sat_frozen,
     )
 
 
@@ -180,8 +164,7 @@ end
     #Boundary conditions
     top_flux = FT(0)
     bottom_flux = FT(0)
-    bc = SoilDomainBC(
-        domain;
+    bc = SoilColumnBC(;
         top = SoilComponentBC(
             hydrology = VerticalFlux(top_flux),
             energy = VerticalFlux(top_flux),
@@ -197,6 +180,7 @@ end
         vanGenuchten{FT}(n = vg_n, α = vg_α, Ksat = Ksat, θr = θ_r)
 
     soil_model = SoilModel(
+        FT;
         domain = domain,
         energy_model = SoilEnergyModel(),
         hydrology_model = SoilHydrologyModel{FT}(

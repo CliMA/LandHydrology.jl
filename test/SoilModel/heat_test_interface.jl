@@ -6,26 +6,17 @@
     ν_ss_quartz = FT(0.1)
     ρc_ds = FT(0.43314518988433487)
     κ_solid = FT(8.0)
-    ρp = FT(2700.0)
     κ_sat_unfrozen = FT(0.57)
     κ_sat_frozen = FT(2.29)
-    a = FT(0.24)
-    b = FT(18.1)
-    κ_dry_parameter = FT(0.053)
     msp = SoilParams{FT}(
-        ν,
-        0.0,
-        ν_ss_gravel,
-        ν_ss_om,
-        ν_ss_quartz,
-        ρc_ds,
-        κ_solid,
-        ρp,
-        κ_sat_unfrozen,
-        κ_sat_frozen,
-        a,
-        b,
-        κ_dry_parameter,
+        ν = ν,
+        ν_ss_gravel = ν_ss_gravel,
+        ν_ss_om = ν_ss_om,
+        ν_ss_quartz = ν_ss_quartz,
+        ρc_ds = ρc_ds,
+        κ_solid = κ_solid,
+        κ_sat_unfrozen = κ_sat_unfrozen,
+        κ_sat_frozen = κ_sat_frozen,
     )
 
 
@@ -44,14 +35,14 @@
     ω = FT(2 * pi / tau)
     topbc = Dirichlet(t -> typeof(t)(0.0))
     bottombc = Dirichlet(t -> typeof(t)(A * cos(ω * t)))
-    bc = SoilDomainBC(
-        domain;
+    bc = SoilColumnBC(;
         top = SoilComponentBC(energy = topbc),
         bottom = SoilComponentBC(energy = bottombc),
     )
 
     # create model
     soil_model = SoilModel(
+        FT;
         domain = domain,
         energy_model = SoilEnergyModel(),
         hydrology_model = PrescribedHydrologyModel(),
