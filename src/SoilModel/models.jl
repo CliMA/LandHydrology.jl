@@ -150,7 +150,7 @@ function Models.default_initial_conditions(
         return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
     end
     t0 = f(0.0)
-    return initialize_states(model, ic, t0)
+    return Models.initialize_states(model, ic, t0)
 end
 
 function Models.default_initial_conditions(model::SoilModel)

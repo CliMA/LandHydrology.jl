@@ -1,4 +1,4 @@
-export make_rhs, make_update_aux, coordinates
+export coordinates
 
 """
     coordinates(cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field
@@ -17,7 +17,7 @@ zero_field(ft, cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field =
     Fields.zeros(ft, cs)
 
 """
-    make_rhs(model::SoilModel)
+    Models.make_rhs(model::SoilModel)
 
 A function which takes a model::AbstractModel as argument, 
 and returns function which computes the rhs
@@ -30,10 +30,10 @@ For the soil model, the rhs function depends on the type of the
 components of the model (the energy and hydrology models), as well as 
 whether additional sources are included.
 """
-function make_rhs(model::SoilModel)
-    update_aux_en! = make_update_aux(model.energy_model)
-    update_aux_hydr! = make_update_aux(model.hydrology_model)
-    rhs_soil! = make_rhs(model.energy_model, model.hydrology_model, model)
+function Models.make_rhs(model::SoilModel)
+    update_aux_en! = Models.make_update_aux(model.energy_model)
+    update_aux_hydr! = Models.make_update_aux(model.hydrology_model)
+    rhs_soil! = Models.make_rhs(model.energy_model, model.hydrology_model, model)
     function rhs!(dY, Y, Ya, t)
         update_aux_en!(Ya, t)
         update_aux_hydr!(Ya, t)
@@ -44,14 +44,14 @@ function make_rhs(model::SoilModel)
 end
 
 """
-    make_update_aux(
+    Models.make_update_aux(
         energy::PrescribedTemperatureModel,
     )
 
 Returns a function which updates the auxiliary state vector in place by 
 modifying the temperature field to the prescribed current value.
 """
-function make_update_aux(energy::PrescribedTemperatureModel)
+function Models.make_update_aux(energy::PrescribedTemperatureModel)
     function update_aux!(Ya, t)
         T = Ya.soil.T
         zc = Ya.zc
@@ -62,14 +62,14 @@ function make_update_aux(energy::PrescribedTemperatureModel)
 end
 
 """
-    make_update_aux(
+    Models.make_update_aux(
         hydrology::PrescribedHydrologyModel
     )
 
 Returns a function which updates the auxiliary state vector in place by 
 modifying the water content fields to the prescribed current value.
 """
-function make_update_aux(hydrology::PrescribedHydrologyModel)
+function Models.make_update_aux(hydrology::PrescribedHydrologyModel)
     function update_aux!(Ya, t)
         zc = Ya.zc
         @unpack ϑ_l, θ_i = Ya.soil
@@ -81,14 +81,14 @@ function make_update_aux(hydrology::PrescribedHydrologyModel)
 end
 
 """
-    make_update_aux(
+    Models.make_update_aux(
         mode::AbstractSoilComponentModel
     )
 
 Returns a function which does not update the auxilary state vector.
 This is appropriate for models which do not add auxiliary state variables.
 """
-function make_update_aux(model::AbstractSoilComponentModel)
+function Models.make_update_aux(model::AbstractSoilComponentModel)
     function update_aux!(Ya, t)
         nothing
     end
@@ -97,10 +97,10 @@ end
 
 
 """
-    make_rhs(energy::PrescribedTemperatureModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
+    Models.make_rhs(energy::PrescribedTemperatureModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
 
 """
-function make_rhs(
+function Models.make_rhs(
     energy::PrescribedTemperatureModel,
     hydrology::PrescribedHydrologyModel,
     model::SoilModel,
@@ -112,10 +112,10 @@ function make_rhs(
 end
 
 """
-    make_rhs(energy::PrescribedTemperatureModel, hydrology::SoilHydrologyModel, model::SoilModel)
+    Models.make_rhs(energy::PrescribedTemperatureModel, hydrology::SoilHydrologyModel, model::SoilModel)
 
 """
-function make_rhs(
+function Models.make_rhs(
     energy::PrescribedTemperatureModel,
     hydrology::SoilHydrologyModel{FT},
     model::SoilModel,
@@ -186,10 +186,10 @@ function make_rhs(
 end
 
 """
-    make_rhs(energy::SoilEnergyModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
+    Models.make_rhs(energy::SoilEnergyModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
 
 """
-function make_rhs(
+function Models.make_rhs(
     energy::SoilEnergyModel,
     hydrology::PrescribedHydrologyModel,
     model::SoilModel,
@@ -263,10 +263,10 @@ function make_rhs(
 end
 
 """
-    make_rhs(energy::SoilEnergyModel, hydrology::SoilHydrologyModel, model::SoilModel)
+    Models.make_rhs(energy::SoilEnergyModel, hydrology::SoilHydrologyModel, model::SoilModel)
 
 """
-function make_rhs(
+function Models.make_rhs(
     energy::SoilEnergyModel,
     hydrology::SoilHydrologyModel{FT},
     model::SoilModel,

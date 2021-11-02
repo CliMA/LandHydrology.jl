@@ -9,7 +9,7 @@ using OrdinaryDiffEq:
     SSPRK33,
     SSPRK73
 using LandHydrology
-using LandHydrology.Models: default_initial_conditions
+using LandHydrology.Models: default_initial_conditions, make_rhs, make_update_aux, initialize_states
 using LandHydrology: EarthParameterSet
 const param_set = EarthParameterSet()
 using LandHydrology.Domains: Column, make_function_space

@@ -1,4 +1,4 @@
-export initialize_prognostic, initialize_auxiliary, initialize_states
+export initialize_prognostic, initialize_auxiliary
 
 """
     initialize_auxiliary(model::SoilModel, t0::Real, zc)
@@ -89,7 +89,7 @@ function initialize_prognostic(model::SoilModel, f::Function, zc)
 end
 
 """
-     initialize_states(model::SoilModel, f::Function, t0::Real)
+     Models.initialize_states(model::SoilModel, f::Function, t0::Real)
 
 This function returns the initial prognostic and auxiliary states for the model,
 given an initial condition function `f` for the prognostic variables, and
@@ -98,7 +98,7 @@ an initial time `t0`.
 In the future, this could be split into two functions, one for aux and one for prognostic variables,
 if we can create the space twice or create the space elsewhere and pass in.
 """
-function initialize_states(model::SoilModel, f::Function, t0::Real)
+function Models.initialize_states(model::SoilModel, f::Function, t0::Real)
     space_c, _ = make_function_space(model.domain)
     zc = coordinates(space_c)
     Y0 = initialize_prognostic(model, f, zc)
