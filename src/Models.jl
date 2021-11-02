@@ -1,5 +1,5 @@
 module Models
-export AbstractModel, default_initial_conditions, make_rhs, make_update_aux, initialize_states
+export AbstractModel, default_initial_conditions, make_rhs, make_update_aux, initialize_states, initialize_prognostic, initialize_auxiliary
 """
     AbstractModel
 
@@ -16,6 +16,12 @@ Construct the initial conditions for `model`.
 """
 function default_initial_conditions(model::AbstractModel) end
 function initialize_states(model::AbstractModel) end
+function initialize_prognostic(model::AbstractModel,...)
+    return (;)
+end
+function initialize_auxiliary(model::AbstractModel,...)
+    return (;)
+end
 
 
 """

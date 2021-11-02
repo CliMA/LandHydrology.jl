@@ -54,7 +54,7 @@ modifying the temperature field to the prescribed current value.
 function Models.make_update_aux(energy::PrescribedTemperatureModel)
     function update_aux!(Ya, t)
         T = Ya.soil.T
-        zc = Ya.zc
+        zc = Ya.soil.zc
         T .= energy.T_profile.(zc, t)
         return Ya
     end
@@ -71,7 +71,7 @@ modifying the water content fields to the prescribed current value.
 """
 function Models.make_update_aux(hydrology::PrescribedHydrologyModel)
     function update_aux!(Ya, t)
-        zc = Ya.zc
+        zc = Ya.soil.zc
         @unpack ϑ_l, θ_i = Ya.soil
         ϑ_l .= hydrology.ϑ_l_profile.(zc, t)
         θ_i .= hydrology.θ_i_profile.(zc, t)
@@ -126,7 +126,7 @@ function Models.make_rhs(
         ϑ_l = Y.soil.ϑ_l
         θ_i = Y.soil.θ_i
         T = Ya.soil.T
-        zc = Ya.zc
+        zc = Ya.soil.zc
 
         cspace = axes(ϑ_l)
         # construct extended state vector
@@ -278,7 +278,7 @@ function Models.make_rhs(
         ϑ_l = Y.soil.ϑ_l
         θ_i = Y.soil.θ_i
         ρe_int = Y.soil.ρe_int
-        zc = Ya.zc
+        zc = Ya.soil.zc
 
         # parameters
         sp = model.soil_param_set

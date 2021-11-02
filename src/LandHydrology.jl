@@ -83,8 +83,29 @@ function make_update_aux(model::LandHydrologyModel)
     return update_aux!
 end
 
-function initialize_states(model::LandHydrologyModel)
+
+        
+# f = tuple of initialize conditions
+# this doesnt split into a clear "initialize_prognostic" and "initialize_auxiliary" set of functions
+# any default_initial_conditions would also not decompose nicely...because default_ic for a submodel has to return a FieldVector,
+# but I dont know how to compose a FieldVector from FieldVectors
+function Models.initialize_states(model::LandHydrologyModel, f::NamedTuple, t0::Real) end
+    subcomponents = propertynames(model)
+    Y = Dict()
+    Ya = Dict()
+    for sc_name in subcomponents
+        sc = getproperty(model, sc_name)
+        f_sc = getproperty(f, sc_name)
+        # will this generalize to models w/o domains?
+        space_c, _ = make_function_space(model.domain)
+        zc = coordinates(space_c)
+        
+        push!(Y, sc_name => Models.initialize_prognostic(model, f_sc, zc))
+        push!(Ya, sc_name => Models.initialize_auxiliary(model, t0, zc))
+    end
+return Fields.FieldVector(; Y...),Fields.FieldVector(; Ya...)
 end
+
 
 
 
