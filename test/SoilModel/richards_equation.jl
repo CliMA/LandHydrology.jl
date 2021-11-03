@@ -74,7 +74,7 @@
     run!(soil_sim)
     sol = soil_sim.integrator.sol
 
-    z = parent(Ya.zc)
+    z = parent(Ya.soil.zc)
     ϑ_l = [parent(sol.u[k].soil.ϑ_l) for k in 1:length(sol.u)]
     function expected(z, z_interface)
         ν = 0.495
@@ -167,7 +167,7 @@ end
     sol = soil_sim.integrator.sol
 
 
-    z = parent(Ya.zc)
+    z = parent(Ya.soil.zc)
     ϑ_l = parent(sol.u[193].soil.ϑ_l)
 
 

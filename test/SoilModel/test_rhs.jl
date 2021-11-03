@@ -24,7 +24,8 @@
     t = 0.0
     space_c, _ = make_function_space(domain)
     zc = coordinates(space_c)
-    p = initialize_auxiliary(soil_model, t, zc)
+    f_aux  = create_aux_ic_function(soil_model)
+    p = Fields.FieldVector(;:soil=>f_aux.(t, zc))
     soil_rhs! = make_rhs(soil_model)
     dY = similar(Y)
     soil_rhs!(dY, Y, p, t)
@@ -35,9 +36,9 @@
     t = 10.0
     update_aux_en!(p, t)
     update_aux_hydr!(p, t)
-    @test parent(p.soil.T) ≈ Tp.(parent(p.zc), t)
-    @test parent(p.soil.ϑ_l) ≈ ϑ_lp.(parent(p.zc), t)
-    @test parent(p.soil.θ_i) ≈ θ_ip.(parent(p.zc), t)
+    @test parent(p.soil.T) ≈ Tp.(parent(p.soil.zc), t)
+    @test parent(p.soil.ϑ_l) ≈ ϑ_lp.(parent(p.soil.zc), t)
+    @test parent(p.soil.θ_i) ≈ θ_ip.(parent(p.soil.zc), t)
 
 end
 

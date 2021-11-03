@@ -1,19 +1,22 @@
+export create_aux_ic_function
 """
-    Models.initialize_auxiliary(model::SoilModel, t0::Real, zc)
+     create_aux_ic_function(model::SoilModel)
 
-Initializes and returns the auxiliary state
+Creates and returns the auxilary state initialization function.
 
-The initial time is required as prescribed variables can be 
-functions of space and time.
+The auxiliary profiles (z,t) are determined via the fields
+of the model; to change them from the defaults, they must
+be adjusted at the soil component model level (model.energy_model,
+model.hydrology_model).
 """
-function Models.initialize_auxiliary(model::SoilModel, t0::Real, zc)
+function create_aux_ic_function(model::SoilModel)
     init_aux_coordinates = (z) -> (; zc = z)
     init_aux_energy = aux_vars(model.energy_model)
     init_aux_hydrology = aux_vars(model.hydrology_model)
-    function init_aux_soil(t, z)
+    function f_aux(t, z)
         return (; init_aux_coordinates(z)..., init_aux_energy(t, z)..., init_aux_hydrology(t, z)...)
     end
-    return init_aux_soil.(t0, zc)
+    return f_aux
 end
 
 """
@@ -59,15 +62,6 @@ function aux_vars(m::AbstractSoilComponentModel)
     return (t, z) -> (;)
 end
 
-"""
-     Models.initialize_prognostic(model::SoilModel, f::Function, zc)
-
-This function evaluates the initial condition
-function `f` at the domain points `zc` and creates the initial state vector `Y`.
-"""
-function Models.initialize_prognostic(model::SoilModel, f::Function, zc)
-    return f.(zc, Ref(model))
-end
 
 """
      Models.initialize_states(model::SoilModel, f::Function, t0::Real)
@@ -82,7 +76,8 @@ if we can create the space twice or create the space elsewhere and pass in.
 function Models.initialize_states(model::SoilModel, f::Function, t0::Real)
     space_c, _ = make_function_space(model.domain)
     zc = coordinates(space_c)
-    Y0 = Fields.FieldVector(; model.name => Models.initialize_prognostic(model, f, zc)
-    Ya0 = Fields.FieldVector(; model.name => Models.initialize_auxiliary(model, t0, zc)
+    Y0 = Fields.FieldVector(; model.name => f.(zc, Ref(model)))
+    f_aux = create_aux_ic_function(model)
+    Ya0 = Fields.FieldVector(; model.name => f_aux.(t0, zc))
     return Y0, Ya0
 end

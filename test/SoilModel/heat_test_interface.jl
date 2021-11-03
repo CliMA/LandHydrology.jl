@@ -84,7 +84,7 @@
     run!(soil_sim)
     sol = soil_sim.integrator.sol
     t = sol.t
-    z = parent(Ya.zc)[:]
+    z = parent(Ya.soil.zc)[:]
     num =
         exp.(sqrt(ω / 2) * (1 + im) * (1 .- z)) .-
         exp.(-sqrt(ω / 2) * (1 + im) * (1 .- z))

@@ -90,7 +90,7 @@
     # solve simulation
     sol = solve(prob, SSPRK33(), dt = dt, saveat = 60 * dt)
 
-    z = parent(Ya.zc)
+    z = parent(Ya.soil.zc)
     vlf = parent(sol.u[end].soil.ϑ_l)
     ρeint = parent(sol.u[end].soil.ρe_int)
     ρc_s = volumetric_heat_capacity.(vlf, 0.0, ρc_ds, Ref(param_set))
@@ -192,7 +192,7 @@ end
     )
 
     Y_init, Ya_init = default_initial_conditions(soil_model)
-    @test parent(Ya_init.zc)[:] ≈ Array(-1.95:0.1:-0.05)
+    @test parent(Ya_init.soil.zc)[:] ≈ Array(-1.95:0.1:-0.05)
     @test parent(Y_init.soil.ϑ_l)[:] ≈ zeros(20) .+ 0.25
     @test parent(Y_init.soil.θ_i)[:] ≈ zeros(20) .+ 0.0
     T0 = FT(T_0(soil_model.earth_param_set))

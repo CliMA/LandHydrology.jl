@@ -1,5 +1,5 @@
 module Models
-export AbstractModel, default_initial_conditions, make_rhs, make_update_aux, initialize_states, initialize_prognostic, initialize_auxiliary
+export AbstractModel, default_initial_conditions, make_rhs, make_update_aux, initialize_states
 """
     AbstractModel
 
@@ -14,13 +14,17 @@ abstract type AbstractModel end
     default_initial_conditions(model::AbstractModel)
 Construct the initial conditions for `model`.
 """
-function default_initial_conditions(model::AbstractModel) end
-function initialize_states(model::AbstractModel) end
-function initialize_prognostic(model::AbstractModel,...)
-    return (;)
+function default_initial_conditions(model::AbstractModel)
+    return Fields.FieldVector(;)
 end
-function initialize_auxiliary(model::AbstractModel,...)
-    return (;)
+
+"""
+    initialize_states(model::AbstractModel)
+
+Initialize the prognostic and auxiliary FieldVectors for `model`.
+"""
+function initialize_states(model::AbstractModel)
+    return Fields.FieldVector(;)
 end
 
 

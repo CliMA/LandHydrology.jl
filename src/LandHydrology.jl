@@ -84,28 +84,41 @@ function make_update_aux(model::LandHydrologyModel)
 end
 
 
-        
-# f = tuple of initialize conditions
-# this doesnt split into a clear "initialize_prognostic" and "initialize_auxiliary" set of functions
-# any default_initial_conditions would also not decompose nicely...because default_ic for a submodel has to return a FieldVector,
-# but I dont know how to compose a FieldVector from FieldVectors
-function Models.initialize_states(model::LandHydrologyModel, f::NamedTuple, t0::Real) end
+function Models.initialize_states(model::LandHydrologyModel, f::NamedTuple, t0::Real)
     subcomponents = propertynames(model)
     Y = Dict()
     Ya = Dict()
     for sc_name in subcomponents
-        sc = getproperty(model, sc_name)
-        f_sc = getproperty(f, sc_name)
-        # will this generalize to models w/o domains?
-        space_c, _ = make_function_space(model.domain)
-        zc = coordinates(space_c)
+        sc_model = getproperty(model, sc_name)
+        Y_sc, Ya_sc = Models.initialize_states(sc_model, f_sc, t0)
+        if sizeof(Y_sc) > 0
+            push!(Y, sc_name => getproperty(Y_sc, sc_name))
+        end
+        if sizeof(Ya_sc) > 0
+            push!(Ya, sc_name => getproperty(Ya_sc, sc_name))
+        end
         
-        push!(Y, sc_name => Models.initialize_prognostic(model, f_sc, zc))
-        push!(Ya, sc_name => Models.initialize_auxiliary(model, t0, zc))
     end
-return Fields.FieldVector(; Y...),Fields.FieldVector(; Ya...)
+    return Fields.FieldVector(; Y...),Fields.FieldVector(; Ya...)
 end
 
+function Models.default_initial_conditions(model::LandHydrologyModel)
+    subcomponents = propertynames(model)
+    Y = Dict()
+    Ya = Dict()
+    for sc_name in subcomponents
+        sc_model = getproperty(model, sc_name)
+        Y_sc, Ya_sc = Models.default_initial_conditions(sc_model)
+        if sizeof(Y_sc) > 0
+            push!(Y, sc_name => getproperty(Y_sc, sc_name))
+        end
+        if sizeof(Ya_sc) > 0
+            push!(Ya, sc_name => getproperty(Ya_sc, sc_name))
+        end
+        
+    end
+    return Fields.FieldVector(; Y...),Fields.FieldVector(; Ya...)
+end
 
 
 
