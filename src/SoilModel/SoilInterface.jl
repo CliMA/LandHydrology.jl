@@ -9,7 +9,7 @@ using UnPack
 using LandHydrology: EarthParameterSet
 using LandHydrology.Domains: AbstractVerticalDomain, make_function_space, Column
 using LandHydrology.Models: AbstractModel
-import LandHydrology: Models, make_rhs, make_update_aux, initialize_states
+import LandHydrology: Models, make_rhs, make_tendency_terms, make_update_aux, initialize_states
 include("SoilWaterParameterizations.jl")
 using .SoilWaterParameterizations
 include("SoilHeatParameterizations.jl")
