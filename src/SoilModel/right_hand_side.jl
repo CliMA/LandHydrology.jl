@@ -1,4 +1,4 @@
-export make_rhs, make_update_aux, coordinates
+export coordinates
 
 """
     coordinates(cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field
@@ -17,7 +17,7 @@ zero_field(ft, cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field =
     Fields.zeros(ft, cs)
 
 """
-    make_rhs(model::SoilModel)
+    Models.make_rhs(model::SoilModel)
 
 A function which takes a model::AbstractModel as argument, 
 and returns function which computes the rhs
@@ -30,31 +30,43 @@ For the soil model, the rhs function depends on the type of the
 components of the model (the energy and hydrology models), as well as 
 whether additional sources are included.
 """
-function make_rhs(model::SoilModel)
-    update_aux_en! = make_update_aux(model.energy_model)
-    update_aux_hydr! = make_update_aux(model.hydrology_model)
-    rhs_soil! = make_rhs(model.energy_model, model.hydrology_model, model)
+function Models.make_rhs(model::SoilModel)
+    update_aux! = Models.make_update_aux(model)
+    soil_tendency_terms! = Models.make_tendency_terms(model)
     function rhs!(dY, Y, Ya, t)
-        update_aux_en!(Ya, t)
-        update_aux_hydr!(Ya, t)
-        rhs_soil!(dY, Y, Ya, t)
+        update_aux!(Ya, t)
+        soil_tendency_terms!(dY, Y, Ya, t)
         return dY
     end
     return rhs!
 end
 
-"""
-    make_update_aux(
-        energy::PrescribedTemperatureModel,
-    )
 
-Returns a function which updates the auxiliary state vector in place by 
-modifying the temperature field to the prescribed current value.
+function Models.make_update_aux(model::SoilModel)
+    update_aux_en! = Models.make_update_aux(model.energy_model)
+    update_aux_hydr! = Models.make_update_aux(model.hydrology_model)
+    function update_aux!(Ya, t)
+        update_aux_en!(Ya,t)
+        update_aux_hydr!(Ya,t)
+    end
+    return update_aux!
+end
+
+
+
+
 """
-function make_update_aux(energy::PrescribedTemperatureModel)
+            Models.make_update_aux(
+                energy::PrescribedTemperatureModel,
+            )
+    
+        Returns a function which updates the auxiliary state vector in place by 
+        modifying the temperature field to the prescribed current value.
+        """
+function Models.make_update_aux(energy::PrescribedTemperatureModel)
     function update_aux!(Ya, t)
         T = Ya.soil.T
-        zc = Ya.zc
+        zc = Ya.soil.zc
         T .= energy.T_profile.(zc, t)
         return Ya
     end
@@ -62,16 +74,16 @@ function make_update_aux(energy::PrescribedTemperatureModel)
 end
 
 """
-    make_update_aux(
+        Models.make_update_aux(
         hydrology::PrescribedHydrologyModel
     )
 
 Returns a function which updates the auxiliary state vector in place by 
 modifying the water content fields to the prescribed current value.
 """
-function make_update_aux(hydrology::PrescribedHydrologyModel)
+function Models.make_update_aux(hydrology::PrescribedHydrologyModel)
     function update_aux!(Ya, t)
-        zc = Ya.zc
+        zc = Ya.soil.zc
         @unpack ϑ_l, θ_i = Ya.soil
         ϑ_l .= hydrology.ϑ_l_profile.(zc, t)
         θ_i .= hydrology.θ_i_profile.(zc, t)
@@ -81,14 +93,14 @@ function make_update_aux(hydrology::PrescribedHydrologyModel)
 end
 
 """
-    make_update_aux(
+    Models.make_update_aux(
         mode::AbstractSoilComponentModel
     )
 
 Returns a function which does not update the auxilary state vector.
 This is appropriate for models which do not add auxiliary state variables.
 """
-function make_update_aux(model::AbstractSoilComponentModel)
+function Models.make_update_aux(model::AbstractSoilComponentModel)
     function update_aux!(Ya, t)
         nothing
     end
@@ -97,36 +109,30 @@ end
 
 
 """
-    make_rhs(energy::PrescribedTemperatureModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
+    Models.make_tendency_terms(model::SoilModel{FT, dm, PrescribedTemperatureModel, PrescribedHydrologyModel},) where {FT,dm}
 
 """
-function make_rhs(
-    energy::PrescribedTemperatureModel,
-    hydrology::PrescribedHydrologyModel,
-    model::SoilModel,
-)
-    function rhs!(dY, Y, Ya, t)
+function Models.make_tendency_terms(model::SoilModel{FT, dm, PrescribedTemperatureModel, PrescribedHydrologyModel}) where {FT, dm}
+    function tendency_terms!(dY, Y, Ya, t)
         nothing
     end
-    return rhs!
+    return tendency_terms!
 end
 
 """
-    make_rhs(energy::PrescribedTemperatureModel, hydrology::SoilHydrologyModel, model::SoilModel)
+    Models.make_tendency_terms(model::SoilModel{FT, dm, PrescribedTemperatureModel, SoilHydrologyModel{FT}},) where {FT, dm}
 
 """
-function make_rhs(
-    energy::PrescribedTemperatureModel,
-    hydrology::SoilHydrologyModel{FT},
-    model::SoilModel,
-) where {FT}
-    function rhs!(dY, Y, Ya, t)
+function Models.make_tendency_terms(
+    model::SoilModel{FT, dm, PrescribedTemperatureModel, SoilHydrologyModel{FT}},) where {FT, dm}
+    function tendency_terms!(dY, Y, Ya, t)
+        hydrology = model.hydrology_model
         dϑ_l = dY.soil.ϑ_l
         dθ_i = dY.soil.θ_i
         ϑ_l = Y.soil.ϑ_l
         θ_i = Y.soil.θ_i
         T = Ya.soil.T
-        zc = Ya.zc
+        zc = Ya.soil.zc
 
         cspace = axes(ϑ_l)
         # construct extended state vector
@@ -147,7 +153,6 @@ function make_rhs(
                 ),
             )...,
         )
-
         sp = model.soil_param_set
         param_set = model.earth_param_set
         hm = hydrology.hydraulic_model
@@ -180,21 +185,18 @@ function make_rhs(
 
         @. dϑ_l = -(divf2c_water(-interpc2f(K) * gradc2f_water(h))) #Richards equation
         dθ_i .= zero_field(FT, cspace)
-        return dY
     end
-    return rhs!
+    return tendency_terms!
 end
 
 """
-    make_rhs(energy::SoilEnergyModel, hydrology::PrescribedHydrologyModel, model::SoilModel)
+    Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, PrescribedHydrologyModel},) where {FT, dm}
 
 """
-function make_rhs(
-    energy::SoilEnergyModel,
-    hydrology::PrescribedHydrologyModel,
-    model::SoilModel,
-)
-    function rhs!(dY, Y, Ya, t)
+function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, PrescribedHydrologyModel},) where {FT, dm}
+
+    function tendency_terms!(dY, Y, Ya, t)
+        energy = model.energy_model
         dρe_int = dY.soil.ρe_int
         ρe_int = Y.soil.ρe_int
         ϑ_l = Ya.soil.ϑ_l
@@ -257,28 +259,26 @@ function make_rhs(
             ),
         )
         @. dρe_int = -divf2c_heat(-interpc2f(κ) * gradc2f_heat(T))
-        return dY
     end
-    return rhs!
+    return tendency_terms!
 end
 
 """
-    make_rhs(energy::SoilEnergyModel, hydrology::SoilHydrologyModel, model::SoilModel)
+    Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, SoilHydrologyModel{FT}}, ) where {FT, dm}
 
 """
-function make_rhs(
-    energy::SoilEnergyModel,
-    hydrology::SoilHydrologyModel{FT},
-    model::SoilModel,
-) where {FT}
-    function rhs!(dY, Y, Ya, t)
+function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, SoilHydrologyModel{FT}},) where {FT, dm}
+    function tendency_terms!(dY, Y, Ya, t)
+        energy = model.energy_model
+        hydrology = model.hydrology_model
+        
         dϑ_l = dY.soil.ϑ_l
         dθ_i = dY.soil.θ_i
         dρe_int = dY.soil.ρe_int
         ϑ_l = Y.soil.ϑ_l
         θ_i = Y.soil.θ_i
         ρe_int = Y.soil.ρe_int
-        zc = Ya.zc
+        zc = Ya.soil.zc
 
         # parameters
         sp = model.soil_param_set
@@ -363,7 +363,6 @@ function make_rhs(
                 -interpc2f(κ) * gradc2f_heat(T) -
                 interpc2f(ρe_int_l * K) * gradc2f_water(h),
             )
-        return dY
     end
-    return rhs!
+    return tendency_terms!
 end

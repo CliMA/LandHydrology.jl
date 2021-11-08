@@ -1,36 +1,22 @@
-export initialize_prognostic, initialize_auxiliary, initialize_states
-
+export create_aux_ic_function
 """
-    initialize_auxiliary(model::SoilModel, t0::Real, zc)
+     create_aux_ic_function(model::SoilModel)
 
-Initializes and returns the auxiliary state FieldVector.
+Creates and returns the auxilary state initialization function.
 
-This function creates an initialization function for each subcomponent of the model,
-by calling `aux_vars` for that model, and then creates the final FieldVector of aux
-states by evaluating those functions for each model on the coordinates of our domain
-and at the initial time. The initial time is required as prescribed variables can be 
-functions of space and time.
+The auxiliary profiles (z,t) are determined via the fields
+of the model; to change them from the defaults, they must
+be adjusted at the soil component model level (model.energy_model,
+model.hydrology_model).
 """
-function initialize_auxiliary(model::SoilModel, t0::Real, zc) # eventually to be called with LandModel type
-    init_aux_soil = aux_vars(model) # eventually will be model.soil
-    return Fields.FieldVector(; :zc => zc, model.name => init_aux_soil.(t0, zc))
-end
-
-"""
-    aux_vars(model::SoilModel)
-
-Returns a function of space and time which can be used to compute the initial
-state of the auxiliary variables of the soil model at the initial time t0.
-
-This implicitly defines which auxiliary variables are included for the model `model`.
-"""
-function aux_vars(model::SoilModel)
+function create_aux_ic_function(model::SoilModel)
+    init_aux_coordinates = (z) -> (; zc = z)
     init_aux_energy = aux_vars(model.energy_model)
     init_aux_hydrology = aux_vars(model.hydrology_model)
-    function init_aux_soil(t, z)
-        return (; init_aux_energy(t, z)..., init_aux_hydrology(t, z)...)
+    function f_aux(t, z)
+        return (; init_aux_coordinates(z)..., init_aux_energy(t, z)..., init_aux_hydrology(t, z)...)
     end
-    return init_aux_soil
+    return f_aux
 end
 
 """
@@ -76,20 +62,9 @@ function aux_vars(m::AbstractSoilComponentModel)
     return (t, z) -> (;)
 end
 
-"""
-     initialize_prognostic(model::SoilModel, f::Function, zc)
-
-This function evaluates the initial condition
-function `f` at the domain points `zc` and creates the initial state vector `Y`.
-"""
-function initialize_prognostic(model::SoilModel, f::Function, zc)
-    soil_ic_tuple = f.(zc, Ref(model))
-    Y = Fields.FieldVector(; model.name => soil_ic_tuple)
-    return Y
-end
 
 """
-     initialize_states(model::SoilModel, f::Function, t0::Real)
+     Models.initialize_states(model::SoilModel, f::Function, t0::Real)
 
 This function returns the initial prognostic and auxiliary states for the model,
 given an initial condition function `f` for the prognostic variables, and
@@ -98,10 +73,11 @@ an initial time `t0`.
 In the future, this could be split into two functions, one for aux and one for prognostic variables,
 if we can create the space twice or create the space elsewhere and pass in.
 """
-function initialize_states(model::SoilModel, f::Function, t0::Real)
+function Models.initialize_states(model::SoilModel, f::Function, t0::Real)
     space_c, _ = make_function_space(model.domain)
     zc = coordinates(space_c)
-    Y0 = initialize_prognostic(model, f, zc)
-    Ya0 = initialize_auxiliary(model, t0, zc)
+    Y0 = Fields.FieldVector(; model.name => f.(zc, Ref(model)))
+    f_aux = create_aux_ic_function(model)
+    Ya0 = Fields.FieldVector(; model.name => f_aux.(t0, zc))
     return Y0, Ya0
 end

@@ -5,11 +5,10 @@ using UnPack
 using OrdinaryDiffEq:
     ODEProblem,
     solve,
-    CarpenterKennedy2N54,# does not work
     SSPRK33,
     SSPRK73
 using LandHydrology
-using LandHydrology.Models: default_initial_conditions
+using LandHydrology.Models: default_initial_conditions, make_rhs, make_tendency_terms, make_update_aux, initialize_states
 using LandHydrology: EarthParameterSet
 const param_set = EarthParameterSet()
 using LandHydrology.Domains: Column, make_function_space
