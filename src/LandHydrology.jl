@@ -20,11 +20,11 @@ hydrology model, including domains, parameters, prognostic variables, differenti
 $(DocStringExtensions.FIELDS)
 
 """
-struct LandHydrologyModel{FT<: AbstractFloat, sm <: AbstractModel, snm<:AbstractModel} <: AbstractModel
+struct LandHydrologyModel{FT<: AbstractFloat, sm <: AbstractModel} <: AbstractModel
     "The soil model"
     soil::sm
-    "The snow model"
-    snow::snm
+#    "The snow model (for example)#
+#    snow::snm
 end
 
 """
