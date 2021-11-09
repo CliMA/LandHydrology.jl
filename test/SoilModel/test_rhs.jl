@@ -18,6 +18,7 @@
             θ_i_profile = θ_ip,
         ),
         boundary_conditions = nothing,
+        earth_param_set = nothing,
     )
     Ys = Dict()
     Y = Fields.FieldVector(; Ys...)

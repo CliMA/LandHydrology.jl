@@ -10,7 +10,8 @@ using OrdinaryDiffEq:
     SSPRK73
 using LandHydrology
 using LandHydrology.Models: default_initial_conditions
-using LandHydrology: EarthParameterSet
+using CLIMAParameters
+struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 using LandHydrology.Domains: Column, make_function_space
 using LandHydrology.SoilInterface

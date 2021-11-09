@@ -110,9 +110,9 @@ function SoilModel(
     hydrology_model::AbstractSoilComponentModel,
     boundary_conditions::BC,
     soil_param_set::SoilParams{FT} = SoilParams{FT}(),
-    earth_param_set::EarthParameterSet = EarthParameterSet(),
+    earth_param_set::ep,
     name::Symbol = :soil,
-) where {FT, BC}
+) where {FT, BC, ep}
     args = (
         domain,
         energy_model,
