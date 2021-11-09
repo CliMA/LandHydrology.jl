@@ -6,7 +6,6 @@ using CLIMAParameters.Planet: T_0
 using DocStringExtensions
 using UnPack
 
-using LandHydrology: EarthParameterSet
 using LandHydrology.Domains: AbstractVerticalDomain, make_function_space, Column
 using LandHydrology.Models: AbstractModel
 import LandHydrology: Models
