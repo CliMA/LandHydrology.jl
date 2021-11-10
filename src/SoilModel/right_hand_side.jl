@@ -32,7 +32,7 @@ whether additional sources are included.
 """
 function Models.make_rhs(model::SoilModel)
     update_aux! = Models.make_update_aux(model)
-    soil_tendency_terms! = Models.make_tendency_terms(model)
+    soil_tendency_terms! = Models.make_tendency_terms(model,_)
     function rhs!(dY, Y, Ya, t)
         update_aux!(Ya, t)
         soil_tendency_terms!(dY, Y, Ya, t)
@@ -112,7 +112,7 @@ end
     Models.make_tendency_terms(model::SoilModel{FT, dm, PrescribedTemperatureModel, PrescribedHydrologyModel},) where {FT,dm}
 
 """
-function Models.make_tendency_terms(model::SoilModel{FT, dm, PrescribedTemperatureModel, PrescribedHydrologyModel}) where {FT, dm}
+function Models.make_tendency_terms(model::SoilModel{FT, dm, PrescribedTemperatureModel, PrescribedHydrologyModel},_) where {FT, dm}
     function tendency_terms!(dY, Y, Ya, t)
         nothing
     end
@@ -124,7 +124,7 @@ end
 
 """
 function Models.make_tendency_terms(
-    model::SoilModel{FT, dm, PrescribedTemperatureModel, SoilHydrologyModel{FT}},) where {FT, dm}
+    model::SoilModel{FT, dm, PrescribedTemperatureModel, SoilHydrologyModel{FT}},_) where {FT, dm}
     function tendency_terms!(dY, Y, Ya, t)
         hydrology = model.hydrology_model
         dϑ_l = dY.soil.ϑ_l
@@ -193,7 +193,7 @@ end
     Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, PrescribedHydrologyModel},) where {FT, dm}
 
 """
-function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, PrescribedHydrologyModel},) where {FT, dm}
+function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, PrescribedHydrologyModel},_) where {FT, dm}
 
     function tendency_terms!(dY, Y, Ya, t)
         energy = model.energy_model
@@ -267,7 +267,7 @@ end
     Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, SoilHydrologyModel{FT}}, ) where {FT, dm}
 
 """
-function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, SoilHydrologyModel{FT}},) where {FT, dm}
+function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, SoilHydrologyModel{FT}},_) where {FT, dm}
     function tendency_terms!(dY, Y, Ya, t)
         energy = model.energy_model
         hydrology = model.hydrology_model

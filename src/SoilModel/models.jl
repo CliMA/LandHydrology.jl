@@ -2,7 +2,11 @@ export SoilHydrologyModel,
     SoilModel,
     PrescribedTemperatureModel,
     PrescribedHydrologyModel,
-    SoilEnergyModel
+    SoilEnergyModel,
+    compute_infiltration
+
+function compute_infiltration(_,_,_) return 0.0 end
+
 
 abstract type AbstractSoilComponentModel end
 """

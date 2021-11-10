@@ -20,11 +20,11 @@ hydrology model, including domains, parameters, prognostic variables, differenti
 $(DocStringExtensions.FIELDS)
 
 """
-struct LandHydrologyModel{FT<: AbstractFloat, sm <: AbstractModel} <: AbstractModel
+struct LandHydrologyModel{FT<: AbstractFloat, sm <: AbstractModel, sfcm<:AbstractModel} <: AbstractModel
     "The soil model"
     soil::sm
-#    "The snow model (for example)#
-#    snow::snm
+    "The surface flow model"
+    sfc_flow::sfcm
 end
 
 """
@@ -42,10 +42,10 @@ values correspond to the current time `t`.
 """
 function make_update_aux(model::LandHydrologyModel)
     soil_update_aux! = Models.make_update_aux(model.soil)
-    #snow_update_aux! = Models.make_update_aux(model.snow)
+    sfc_flow_update_aux! = Models.make_update_aux(model.sfc_flow)
     function update_aux!(Ya, Y, t)
         soil_update_aux!(Ya, Y, t)
-        #snow_update_aux!(Ya,Y, t)
+        sfc_flow_update_aux!(Ya,Y, t)
     end
     return update_aux!
 end
@@ -78,14 +78,12 @@ to update the prognostic state `Y`: `dY = 0`.
 """
 function Models.make_rhs(model::LandHydrologyModel)
     update_aux! = make_update_aux(model)
-    soil_tendency_terms! = Models.make_tendency_terms(model.soil)
-    #snow_tendency_terms! = Models.make_tendency_terms(model.snow)
-    # interaction_tendency_terms! = Models.make_tendency_terms(model)#? 
+    soil_tendency_terms! = Models.make_tendency_terms(model.soil, model)
+    sfc_flow_tendency_terms! = Models.make_tendency_terms(model.sfc_flow, model)
     function rhs!(dY, Y, Ya, t)
         update_aux!(Ya,Y,t)
         soil_tendency_terms!(dY,Y, Ya, t)
-        #snow_tendency_terms!(dY,Y,Ya,t)
-        #interaction_tendency_terms!(dY,Y,Ya,t)
+        sfc_flow_tendency_terms(dY,Y,Ya,t)
     end
     return rhs!
 end
