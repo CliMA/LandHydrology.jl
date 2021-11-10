@@ -168,7 +168,8 @@ end
 
 
     z = parent(Ya.zc)
-    ϑ_l = parent(sol.u[193].soil.ϑ_l)
+    N = length(sol.t)
+    ϑ_l = parent(sol.u[N].soil.ϑ_l)
 
 
     bonan_sand_dataset = ArtifactWrapper(

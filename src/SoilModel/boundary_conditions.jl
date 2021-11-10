@@ -1,5 +1,21 @@
-export VerticalFlux,
-    Dirichlet, FreeDrainage, SoilColumnBC, SoilComponentBC, NoBC
+using SurfaceFluxes: surface_conditions, DGScheme
+using Thermodynamics: Liquid, q_vap_saturation_generic, PhasePartition, cp_m
+using CLIMAParameters.Atmos.Microphysics: D_vapor
+using CLIMAParameters.Planet:
+    R_v, grav, ρ_cloud_liq, cp_d, R_d, T_0, LH_v0, cp_v
+using Printf
+export NoBC,
+    VerticalFlux,
+    Dirichlet,
+    FreeDrainage,
+    SoilColumnBC,
+    SoilComponentBC,
+    PrescribedAtmosForcing,
+    boundary_fluxes,
+    compute_turbulent_surface_fluxes
+
+#### Specific BC types
+
 abstract type AbstractBC end
 
 """
@@ -29,18 +45,6 @@ struct VerticalFlux{f <: AbstractFloat} <: AbstractBC
     flux::f
 end
 
-"""
-    FreeDrainage <: AbstractBC
-
-A BC type for use with the SoilHydrologyModel (Richards Equation),
-at the bottom of the domain, setting 
-
-``
-    ∇h = 1.
-``
-
-"""
-struct FreeDrainage <: AbstractBC end
 
 """
     Dirichlet{f} <: AbstractBC
@@ -60,7 +64,25 @@ struct Dirichlet{f} <: AbstractBC
 end
 
 """
-    SoilComponentBC{ebc <: AbstractBC, hbc <: AbstractBC}
+    FreeDrainage <: AbstractBC
+
+A BC type for use with the SoilHydrologyModel (Richards Equation),
+at the bottom of the domain, setting 
+
+``
+    ∇h = 1.
+``
+
+"""
+struct FreeDrainage <: AbstractBC end
+
+
+#### Types for attaching boundary conditions to the soil model
+
+abstract type AbstractFaceBC end
+
+""" 
+    SoilComponentBC{ebc <: AbstractBC, hbc <: AbstractBC} <: AbstractFaceBC
 
 A container for holding the boundary conditions for the components of the soil model.
 
@@ -70,43 +92,77 @@ Each boundary will have a SoilComponentBC object associated with it.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-Base.@kwdef struct SoilComponentBC{ebc <: AbstractBC, hbc <: AbstractBC}
+Base.@kwdef struct SoilComponentBC{ebc <: AbstractBC, hbc <: AbstractBC} <:
+                   AbstractFaceBC
     "BC for the heat equation"
     energy::ebc = NoBC()
     "BC for ϑ_l"
     hydrology::hbc = NoBC()
 end
 
-
 """
-    SoilColumnBC{ TBC, BBC}
+    PrescribedAtmosForcing{FT <: AbstractFloat} <: AbstractFaceBC
 
-A container holding the SoilComponentBC for each boundary face.
+A container for holding the atmosphere state variables that are needed to drive the soil model
+via a Monin-Obukhov theory for the surface fluxes.
 
-Each field value should be of type SoilComponentBC. This doesn't do 
-what we want. Ideally the fields would change depending on the domain - 
-e.g. for a Column, they are top and bottom, but for a 3D domain, they might be
-top, bottom, xleft, xright, yleft, yright.
+At present, this boundary condition can only be used with a SoilModel
+that includes both volumetric internal energy and volumetric water fractions
+as prognostic variables. Sublimation of ice is not currently supported,
+nor is precipitation, nor any additional resistance due to a dry layer in
+the soil.  Eventually this will support functions of space and time, 
+so that reanalysis data can be used to drive the land model. 
 
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilColumnBC{TBC <: SoilComponentBC, BBC <: SoilComponentBC}
+Base.@kwdef struct PrescribedAtmosForcing{FT <: AbstractFloat} <: AbstractFaceBC
+    "The wind speed parallel to the surface at height z_atm"
+    u_atm::FT
+    "The potential temperature of the atmosphere at the height z_atm"
+    θ_atm::FT
+    "The height at which the atmospheric state is measured"
+    z_atm::FT
+    "The porential temperature scale"
+    θ_scale::FT
+    "The density of the moist air at the surface"
+    ρ_a_sfc::FT
+    "The specific humidity of the atmosphere at the height z_atm"
+    q_atm::FT
+end
+
+"""
+    SoilColumnBC{TBC, BBC}
+
+A container holding the Soil BC for each boundary face.
+
+Each field value should be of supertype AbstractFaceBC.
+
+# Fields
+$(DocStringExtensions.FIELDS)
+"""
+struct SoilColumnBC{
+    TBC <: Union{SoilComponentBC, PrescribedAtmosForcing},
+    BBC <: SoilComponentBC,
+}
     "SoilComponentBC for the top of the domain"
     top::TBC
-    "SoilComponentBC for the bottom of the domain"
+    "Soil BC for the bottom of the domain"
     bottom::BBC
 end
 
 
 function SoilColumnBC(;
-    top::SoilComponentBC = SoilComponentBC(),
+    top::Union{SoilComponentBC, PrescribedAtmosForcing} = SoilComponentBC(),
     bottom::SoilComponentBC = SoilComponentBC(),
 )
     args = (top, bottom)
     return SoilColumnBC{typeof.(args)...}(args...)
 end
 
+
+
+###### Methods for expressing any BC in terms of a flux
 
 """
 
@@ -399,6 +455,17 @@ end
 
 Returns the boundary flux at the boundary `face` for all
 components of the soil model. 
+
+`X` is a FieldVector with components `ϑ_l`, `θ_i`, and `T`. 
+The `bc` field contains the boundary condition
+types (`Dirichlet`, `VerticalFlux`, etc) for both the energy and hydrology equations.
+In the case of explicitly time-varying boundary conditions, we also must supply the current time
+`t`.
+
+The remaining fields are required in the case of certain `bc` types, such as Dirichlet.
+In this case, we are turning a state boundary condition into a flux boundary condition, and this
+requires knowing the side of the domain we are on (encoded in `face`), the values of `X` just interior
+to this face, and the center space `cs` itself.
 """
 function boundary_fluxes(
     X,
@@ -419,4 +486,135 @@ function boundary_fluxes(
     fρe_int = vertical_flux(bc.energy, energy, X_cf, model, dz, face)
     fϑ_l = vertical_flux(bc.hydrology, hydrology, X_cf, model, dz, face)
     return (fρe_int = fρe_int, fϑ_l = fϑ_l)
+end
+
+
+"""
+    function boundary_fluxes(
+        X,
+        bc::PrescribedAtmosForcing,
+        face::Symbol,
+        model::SoilModel,
+        cs,
+        t,
+    )
+
+Returns the boundary flux at the boundary `face` for all
+components of the soil model in the case of PrescribedAtmosForcing.
+
+`X` is a FieldVector with components `ϑ_l`, `θ_i`, and `T`. 
+The `bc` field contains the boundary condition
+types (`Dirichlet`, `VerticalFlux`, etc) for both the energy and hydrology equations.
+In the case of explicitly time-varying boundary conditions, we also must supply the current time
+`t`.
+
+The remaining fields are required in the case of certain `bc` types, such as Dirichlet.
+In this case, we are turning a state boundary condition into a flux boundary condition, and this
+requires knowing the side of the domain we are on (encoded in `face`), the values of `X` just interior
+to this face, and the center space `cs` itself.
+"""
+function boundary_fluxes(
+    X,
+    bc::PrescribedAtmosForcing,
+    face::Symbol,
+    model::SoilModel,
+    cs,
+    t,
+)
+    if face != :top
+        error(
+            "Prescribed atmosphere-driven boundary conditions are only valid at the top of the soil column.",
+        )
+    end
+
+    energy = model.energy_model
+    hydrology = model.hydrology_model
+    ϑ_l, θ_i, T = interior_values(X, face, cs)
+    fρe_int, fϑ_l =
+        compute_turbulent_surface_fluxes(energy, hydrology, model, ϑ_l, θ_i, T)
+    return (fρe_int = fρe_int, fϑ_l = fϑ_l)
+end
+
+"""
+    compute_turbulent_surface_fluxes(
+        energy::SoilEnergyModel,
+        hydrology::SoilHydrologyModel,
+        model::SoilModel,
+        ϑ_l::FT,
+        θ_i::FT,
+        T::FT,
+    ) where {FT}
+
+Returns the surface fluxes resulting from the conditions
+at the surface (obtained from the soil model) and from the
+prescribed atmosphere variables.
+
+This function employs Monin-Obukhov similarity theory. For more
+details, see github.com/Clima/SurfaceFluxes.jl.
+"""
+function compute_turbulent_surface_fluxes(
+    energy::SoilEnergyModel,
+    hydrology::SoilHydrologyModel,
+    model::SoilModel,
+    ϑ_l::FT,
+    θ_i::FT,
+    T::FT,
+) where {FT}
+
+    # Atmospheric state at height z_atm, and surface moist air density
+    atmos_conditions = model.boundary_conditions.top
+    @unpack θ_scale, z_atm, ρ_a_sfc, u_atm, q_atm, θ_atm = atmos_conditions
+    x_in = [u_atm, θ_atm, q_atm]
+
+    # Parameters, including surface roughness z_0
+    @unpack ν, z_0m, z_0s = model.soil_param_set
+    z_0 = [z_0m, z_0s, z_0s]
+    param_set = model.earth_param_set
+
+    # Compute specific humidity in the soil pore air near the surface
+    q_sat = q_vap_saturation_generic(param_set, T, ρ_a_sfc, Liquid())
+    Rv = R_v(param_set)
+    g = grav(param_set)
+    hm = hydrology.hydraulic_model
+    ν_eff = ν - θ_i
+    θ_l = volumetric_liquid_fraction(ϑ_l, ν_eff)
+    S_l_eff = min(effective_saturation(ν_eff, θ_l, hm.θr), 1.0)
+    ψ = matric_potential(hm, S_l_eff)
+    correction = exp(g * ψ / Rv / T)
+    q_surf = q_sat * correction
+    # The surface state
+    x_s = [FT(0.0), T, q_surf]
+
+    Lmo_guess = [
+        FT(100.0) * z_atm,
+        atmos_conditions.u_atm,
+        atmos_conditions.θ_atm,
+        q_atm,
+    ] # save from, previous step?
+
+    conditions = surface_conditions(
+        param_set,
+        Lmo_guess,
+        x_in,
+        x_s,
+        z_0,
+        θ_scale,
+        z_atm,
+        DGScheme(),
+    )
+
+    (ustar, tstar, qstar) = conditions.x_star
+    qp = PhasePartition(q_surf) # assumes all moisture is in vapor phase
+    cpm = cp_m(param_set, qp)
+    _T_ref = FT(T_0(param_set))
+    h_d = cp_d(param_set) * (T - _T_ref) + R_d(param_set) * _T_ref
+
+    # Fluxes of energy and water volume
+    E = -ρ_a_sfc * ustar * qstar
+    dry_static_energy_flux = -cpm * ρ_a_sfc * ustar * tstar - h_d * E # ignoring change in height
+    vapor_static_energy_flux =
+        FT(cp_v(param_set) * (T - _T_ref) + LH_v0(param_set)) * E# ignoring change in height
+    Ẽ = E / ρ_cloud_liq(param_set) # the soil model needs a volume flux
+    heat_flux = dry_static_energy_flux + vapor_static_energy_flux
+    return heat_flux, Ẽ
 end

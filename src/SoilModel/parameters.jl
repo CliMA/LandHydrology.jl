@@ -35,4 +35,9 @@ Base.@kwdef struct SoilParams{FT} <: ParameterStructure{FT}
     b::FT = 18.1
     "Parameter needed in Balland & Arp model for κ_dry"
     κ_dry_parameter::FT = 0.053
+    "Surface roughness for momentum"
+    z_0m::FT = 0.001
+    "Surface roughness for scalars"
+    z_0s::FT = 0.001
+
 end

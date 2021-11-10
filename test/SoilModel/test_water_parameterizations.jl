@@ -1,4 +1,3 @@
-
 @testset "soil water params" begin
     FT = Float32
     θr = FT(0.2)

@@ -73,11 +73,14 @@
     )
 
     # initial conditions
-    function initial_conditions(z::FT, model::SoilModel)
+    function initial_conditions(
+        z::ft,
+        model::SoilModel,
+    ) where {ft <: AbstractFloat}
         param_set = model.earth_param_set
-        T = 289.0 + 5.0 * z
-        θ_i = 0.0
-        θ_l = 0.495
+        T = ft(289.0 + 5.0 * z)
+        θ_i = ft(0.0)
+        θ_l = ft(0.495)
         ρcds = model.soil_param_set.ρc_ds
         ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρcds, param_set)
         ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, param_set)
