@@ -320,7 +320,7 @@ function vertical_flux(
     soil::SoilModel,
     dz::AbstractFloat,
     face::Symbol,
-    _
+    _...,
     )
     @unpack ϑ_l, θ_i, T = X_cf # [center, face]
     @unpack ν, S_s = soil.soil_param_set

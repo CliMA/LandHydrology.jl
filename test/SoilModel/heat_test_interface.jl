@@ -50,9 +50,9 @@
         soil_param_set = msp,
         earth_param_set = param_set,
     )
-
+    land_model = LandHydrologyModel{FT}(soil_model,NotIncluded(),)
     # initial conditions
-    @test_throws ErrorException default_initial_conditions(soil_model)
+    @test_throws ErrorException default_initial_conditions(land_model)
     function energy_ic(z, model)
         T = 0.0
         θ_i = 0.0
@@ -66,9 +66,11 @@
         ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, model.earth_param_set)
         return (; ρe_int = ρe_int)
     end
-    Y, Ya = initialize_states(soil_model, energy_ic, t0)
-    soil_sim = Simulation(
-        soil_model,
+
+    Y, Ya = initialize_states(land_model, (;soil =energy_ic,), t0)
+    land_rhs! = make_rhs(land_model)
+    land_sim = Simulation(
+        land_model,
         SSPRK33(),
         Y_init = Y,
         dt = dt,
@@ -78,11 +80,10 @@
         progress = true,
         progress_message = (dt, u, p, t) -> t,
     )
-
     # solve simulation
-    @test step!(soil_sim) isa Nothing # either error or integration runs
-    run!(soil_sim)
-    sol = soil_sim.integrator.sol
+    @test step!(land_sim) isa Nothing # either error or integration runs
+    run!(land_sim)
+    sol = land_sim.integrator.sol
     t = sol.t
     z = parent(Ya.soil.zc)[:]
     num =

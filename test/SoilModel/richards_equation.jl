@@ -48,17 +48,19 @@
         soil_param_set = msp,
         earth_param_set = param_set,
     )
-
+    land_model = LandHydrologyModel{FT}(soil_model,NotIncluded(),)
     # initial conditions
     @test_throws ErrorException default_initial_conditions(soil_model)
+    @test_throws ErrorException default_initial_conditions(land_model)
     function initial_conditions(z, model)
         θ_i = 0.0
         θ_l = 0.494
         return (ϑ_l = θ_l, θ_i = θ_i)
     end
-    Y, Ya = initialize_states(soil_model, initial_conditions, t0)
-    soil_sim = Simulation(
-        soil_model,
+    Y, Ya = initialize_states(land_model, (;soil =initial_conditions,), t0)
+    land_rhs! = make_rhs(land_model)
+    land_sim = Simulation(
+        land_model,
         SSPRK33(),
         Y_init = Y,
         dt = dt,
@@ -70,9 +72,9 @@
     )
 
     # solve simulation
-    @test step!(soil_sim) isa Nothing # either error or integration runs
-    run!(soil_sim)
-    sol = soil_sim.integrator.sol
+    @test step!(land_sim) isa Nothing # either error or integration runs
+    run!(land_sim)
+    sol = land_sim.integrator.sol
 
     z = parent(Ya.soil.zc)
     ϑ_l = [parent(sol.u[k].soil.ϑ_l) for k in 1:length(sol.u)]
@@ -140,17 +142,19 @@ end
         soil_param_set = msp,
         earth_param_set = param_set,
     )
-
+    land_model = LandHydrologyModel{FT}(soil_model,NotIncluded(),)
     # initial conditions
-    @test_throws ErrorException default_initial_conditions(soil_model)
+    @test_throws ErrorException default_initial_conditions(land_model)
     function ic(z, model)
         θ_i = 0.0
         θ_l = 0.1
         return (ϑ_l = θ_l, θ_i = θ_i)
     end
-    Y, Ya = initialize_states(soil_model, ic, t0)
-    soil_sim = Simulation(
-        soil_model,
+
+    Y, Ya = initialize_states(land_model, (;soil =ic,), t0)
+    land_rhs! = make_rhs(land_model)
+    land_sim = Simulation(
+        land_model,
         SSPRK33(),
         Y_init = Y,
         dt = dt,
@@ -162,13 +166,12 @@ end
     )
 
     # solve simulation
-    @test step!(soil_sim) isa Nothing # either error or integration runs
-    run!(soil_sim)
-    sol = soil_sim.integrator.sol
-
-
+    @test step!(land_sim) isa Nothing # either error or integration runs
+    run!(land_sim)
+    sol = land_sim.integrator.sol
     z = parent(Ya.soil.zc)
-    ϑ_l = parent(sol.u[193].soil.ϑ_l)
+    N = length(sol.t)
+    ϑ_l = parent(sol.u[N].soil.ϑ_l)
 
 
     bonan_sand_dataset = ArtifactWrapper(

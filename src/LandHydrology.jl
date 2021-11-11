@@ -9,7 +9,17 @@ include("Domains/Domains.jl")
 include("Models.jl")
 using .Models: AbstractModel, NotIncluded
 import .Models:  make_tendency_terms, default_initial_conditions, make_update_aux, initialize_states
-export make_rhs, LandHydrologyModel
+export make_rhs, LandHydrologyModel, PrescribedAtmosState, NoAtmosState
+
+abstract type AbstractAtmosState end
+
+struct PrescribedAtmosState{FT<:AbstractFloat, p} <: AbstractAtmosState
+    precipitation::p
+    PrescribedAtmosState{FT}(precipitation::p) where {FT, p} = new{FT,p}(precipitation)
+end
+
+struct CoupledAtmosState <: AbstractAtmosState end # signal to be coupled to dynamic model
+struct NoAtmosState <: AbstractAtmosState end # signal to be coupled to dynamic model
 
 """
     LandHydrologyModel{FT<: AbstractFloat, sm <: AbstractModel} <: AbstractModel
@@ -20,13 +30,15 @@ hydrology model, including domains, parameters, prognostic variables, differenti
 $(DocStringExtensions.FIELDS)
 
 """
-struct LandHydrologyModel{FT<: AbstractFloat, sm <: AbstractModel, sfcm<:AbstractModel} <: AbstractModel
+struct LandHydrologyModel{FT<: AbstractFloat, sm <: AbstractModel, sfcm<:AbstractModel, atm <:AbstractAtmosState} <: AbstractModel
     "The soil model"
     soil::sm
     "The surface water model"
     sfc_water::sfcm
-    LandHydrologyModel{FT}(soil::sm, sfc_water::sfcm) where {FT, sm, sfcm} = new{FT, sm, sfcm}(
-    soil, sfc_water)
+    "Atmospheric state - either coupled, prescribed, or unused"
+    atmos_state::atm
+    LandHydrologyModel{FT}(soil::sm, sfc_water::sfcm; atmos_state::atm = NoAtmosState()) where {FT, sm, sfcm,atm} = new{FT, sm, sfcm, atm}(
+    soil, sfc_water,atmos_state)
 end
 
 """
