@@ -1,5 +1,5 @@
 export VerticalFlux,
-    Dirichlet, FreeDrainage, SoilColumnBC, SoilComponentBC, NoBC
+    Dirichlet, FreeDrainage, SoilColumnBC, SoilComponentBC, NoBC, SurfaceWater
 abstract type AbstractBC end
 
 """
@@ -28,6 +28,8 @@ struct VerticalFlux{f <: AbstractFloat} <: AbstractBC
     "Scalar flux; positive = aligned with ẑ"
     flux::f
 end
+
+struct SurfaceWater <: AbstractBC end
 
 """
     FreeDrainage <: AbstractBC
@@ -152,7 +154,7 @@ function boundary_cf_distance(
 end
 
 """
-    initialize_boundary_values(X, face::Symbol, model::SoilModel, cs::Spaces.CenterFiniteDifferenceSpace)
+    initialize_boundary_values(X, face::Symbol, cs::Spaces.CenterFiniteDifferenceSpace)
 
 Initializes the 2-element arrays (pairs) of boundary values (center, face), `X_cf`,
 for each of ϑ_l, θ_i, T.
@@ -162,7 +164,6 @@ The initialization sets the boundary face value equal to the center value.
 function initialize_boundary_values(
     X,
     face::Symbol,
-    model::SoilModel,
     cs::Spaces.CenterFiniteDifferenceSpace,
 )
     ϑ_l, θ_i, T = interior_values(X, face, cs)
@@ -275,7 +276,7 @@ function vertical_flux(
     X_cf::NamedTuple,
     soil::SoilModel,
     _...,
-)
+    )
     @unpack ϑ_l, θ_i, T = X_cf # [center, face]
     ϑ_l = ϑ_l[1]
     θ_i = θ_i[1]
@@ -319,7 +320,8 @@ function vertical_flux(
     soil::SoilModel,
     dz::AbstractFloat,
     face::Symbol,
-)
+    _
+    )
     @unpack ϑ_l, θ_i, T = X_cf # [center, face]
     @unpack ν, S_s = soil.soil_param_set
     hm = component.hydraulic_model
@@ -364,7 +366,8 @@ function vertical_flux(
     soil::SoilModel,
     dz::AbstractFloat,
     face::Symbol,
-)
+    _...
+    )
     @unpack ϑ_l, θ_i, T = X_cf # [center, face]
     @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = soil.soil_param_set
     param_set = soil.earth_param_set
@@ -401,22 +404,37 @@ Returns the boundary flux at the boundary `face` for all
 components of the soil model. 
 """
 function boundary_fluxes(
-    X,
+    Y,
+    Ya,
     bc::SoilComponentBC,
     face::Symbol,
-    model::SoilModel,
+    soil::SoilModel,
     cs,
     t,
-)
-    energy = model.energy_model
-    hydrology = model.hydrology_model
-
-    X_cf = initialize_boundary_values(X, face, model, cs)
+    )
+    energy = soil.energy_model
+    hydrology = soil.hydrology_model
+    T = get_temperature(soil, Y, Ya)
+    ϑ_l, θ_i = get_water_content(hydrology, Y, Ya)
+    #need to replace with get water content
+    X = Fields.FieldVector(ϑ_l = ϑ_l, θ_i = θ_i, T = T) # blend of state and prescribed variables needed at boundary
+    X_cf = initialize_boundary_values(X, face, cs)
     set_boundary_values!(X_cf, bc.energy, energy, t)
     set_boundary_values!(X_cf, bc.hydrology, hydrology, t)
 
     dz = boundary_cf_distance(face, cs)
-    fρe_int = vertical_flux(bc.energy, energy, X_cf, model, dz, face)
-    fϑ_l = vertical_flux(bc.hydrology, hydrology, X_cf, model, dz, face)
+    fρe_int = vertical_flux(bc.energy, energy, X_cf, soil, dz, face, Y, Ya)
+    fϑ_l = vertical_flux(bc.hydrology, hydrology, X_cf, soil, dz, face, Y, Ya)
     return (fρe_int = fρe_int, fϑ_l = fϑ_l)
+end
+
+function vertical_flux(bc::SurfaceWater,
+                       hydrology::SoilHydrologyModel{FT},
+                       X_cf,
+                       soil::SoilModel,
+                       dz::FT,
+                       face::Symbol,
+                       Y::Fields.FieldVector,
+                       Ya::Fields.FieldVector) where {FT}
+    return Ya.sfc_water.infiltration
 end

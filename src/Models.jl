@@ -1,10 +1,10 @@
 module Models
 export AbstractModel,
     default_initial_conditions,
-    make_rhs,
     make_tendency_terms,
     make_update_aux,
-    initialize_states
+    initialize_states,
+    NotIncluded
 """
     AbstractModel
 
@@ -15,6 +15,7 @@ will be of this type.
 """
 abstract type AbstractModel end
 
+struct NotIncluded <: AbstractModel end
 abstract type AbstractTendencyTerm end
 
 """
@@ -34,16 +35,8 @@ function initialize_states(model::AbstractModel)
     return Fields.FieldVector(;)
 end
 
-
-function make_rhs(model::AbstractModel)
-    function rhs!(dY, Y, Ya, t)
-        nothing
-    end
-    return rhs!
-end
-
 """
-   make_ode(model::AbstractModel)
+   make_tendency_terms(model::AbstractModel)
 Constructs the `rhs` (right hand side) function for the `model`, where 
 the `model` defines a set of differential equations, prognostic
 variables `Y`, and required parameters `Ya` for those equations, and the right hand side 
@@ -55,7 +48,7 @@ Given a model with e.g. a partial differential equation for `θ` and an
 ordinary equation for `h`, the rhs function created by `make_rhs`
 computes the *ode* rhs for `h` and the semi-discrete (ode) rhs for `θ`.
 """
-function make_tendency_terms(model::AbstractModel)
+function make_tendency_terms(model::AbstractModel, lm::AbstractModel)
     function tendency_terms!(dY, Y, Ya, t)
         nothing
     end
@@ -67,8 +60,8 @@ end
    make_update_aux(model::AbstractModel)
 
 """
-function make_update_aux(model::AbstractModel)
-    function update_aux!(Ya, t)
+function make_update_aux(model::AbstractModel, lm::AbstractModel)
+    function update_aux!(Ya, Y, t)
         nothing
     end
     return update_aux!

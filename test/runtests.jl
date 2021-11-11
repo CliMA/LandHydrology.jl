@@ -8,7 +8,8 @@ using OrdinaryDiffEq:
     SSPRK33,
     SSPRK73
 using LandHydrology
-using LandHydrology.Models: default_initial_conditions, make_rhs, make_tendency_terms, make_update_aux, initialize_states
+using LandHydrology: make_rhs, LandHydrologyModel
+using LandHydrology.Models: default_initial_conditions, make_tendency_terms, make_update_aux, initialize_states, NotIncluded
 using LandHydrology: EarthParameterSet
 const param_set = EarthParameterSet()
 using LandHydrology.Domains: Column, make_function_space
@@ -16,6 +17,7 @@ using LandHydrology.SoilInterface
 using LandHydrology.SoilInterface.SoilWaterParameterizations
 using LandHydrology.SoilInterface.SoilHeatParameterizations
 using LandHydrology.Simulations
+using LandHydrology.SurfaceWater
 using Statistics
 using Test
 using ArtifactWrappers

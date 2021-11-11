@@ -4,7 +4,7 @@ using DiffEqBase
 
 # using ClimaAtmos.Callbacks
 using LandHydrology.Models: AbstractModel
-using LandHydrology.SoilInterface: make_rhs
+using LandHydrology: make_rhs
 using ClimaCore: Fields
 using DocStringExtensions
 

@@ -72,6 +72,9 @@
         earth_param_set = param_set,
     )
 
+    
+    land_model = LandHydrologyModel{FT}(soil_model,NotIncluded(),)
+
     # initial conditions
     function initial_conditions(z::FT, model::SoilModel)
         param_set = model.earth_param_set
@@ -83,9 +86,9 @@
         ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, param_set)
         return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
     end
-    Y, Ya = initialize_states(soil_model, initial_conditions, t0)
-    soil_rhs! = make_rhs(soil_model)
-    prob = ODEProblem(soil_rhs!, Y, (t0, tf), Ya)
+    Y, Ya = initialize_states(land_model, (;soil =initial_conditions,), t0)
+    land_rhs! = make_rhs(land_model)
+    prob = ODEProblem(land_rhs!, Y, (t0, tf), Ya)
 
     # solve simulation
     sol = solve(prob, SSPRK33(), dt = dt, saveat = 60 * dt)
@@ -213,7 +216,8 @@ end
         )
     @test parent(Y_init.soil.ρe_int)[:] ≈ parent(ρe_int)[:]
     dY = similar(Y_init)
-    soil_rhs! = make_rhs(soil_model)
+    land_model = LandHydrologyModel{FT}(soil_model, NotIncluded())
+    soil_rhs! = make_rhs(land_model)
     soil_rhs!(dY, Y_init, Ya_init, 0.0)
     @test parent(dY.soil.θ_i)[:] ≈ zeros(20)
     @test parent(dY.soil.ρe_int)[:] ≈ zeros(20)

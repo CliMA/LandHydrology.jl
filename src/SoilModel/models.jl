@@ -161,5 +161,40 @@ function Models.default_initial_conditions(model::SoilModel)
     error("No default IC exist for this type of soil model.")
 end
 
+
+
+
+function get_temperature(model::SoilModel{f, dm, SoilEnergyModel,}, Y::Fields.FieldVector, Ya::Fields.FieldVector) where {dm, f}
+    ρe_int = Y.soil.ρe_int
+    ϑ_l, θ_i = get_water_content(model.hydrology_model, Y, Ya)
+    # Parameters
+    sp = model.soil_param_set
+    param_set = model.earth_param_set
+    @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
+    
+    # Compute center values of everything
+    ν_eff = ν .- θ_i
+    θ_l = volumetric_liquid_fraction.(ϑ_l, ν_eff)
+    
+    ρc_s = volumetric_heat_capacity.(θ_l, θ_i, ρc_ds, Ref(param_set))
+    T = temperature_from_ρe_int.(ρe_int, θ_i, ρc_s, Ref(param_set))
+    return T
+end
+
+
+function get_temperature(model::SoilModel{f, dm, PrescribedTemperatureModel,}, Y::Fields.FieldVector, Ya::Fields.FieldVector) where {dm, f}
+    return Ya.soil.T
+end
+
+
+function get_water_content(model::SoilHydrologyModel, Y::Fields.FieldVector,Ya::Fields.FieldVector)
+    return Y.soil.ϑ_l, Y.soil.θ_i
+end
+
+
+function get_water_content(model::PrescribedHydrologyModel, Y::Fields.FieldVector,Ya::Fields.FieldVector)
+    return Ya.soil.ϑ_l, Ya.soil.θ_i
+end
+
 include("boundary_conditions.jl")
 include("right_hand_side.jl")

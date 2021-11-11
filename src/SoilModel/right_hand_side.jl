@@ -1,3 +1,5 @@
+# We may still be able to preserve not using LandModel (make_rhs(soil_model))
+
 export coordinates
 
 """
@@ -16,38 +18,13 @@ with all values = 0, of type `ft`.
 zero_field(ft, cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field =
     Fields.zeros(ft, cs)
 
-"""
-    Models.make_rhs(model::SoilModel)
 
-A function which takes a model::AbstractModel as argument, 
-and returns function which computes the rhs
-of a set of ordinary differential equations corresponding to
-that model.
-
-Currently, the arguments of the returned rhs function
-are configured for use with OrdinaryDiffEq.jl.
-For the soil model, the rhs function depends on the type of the 
-components of the model (the energy and hydrology models), as well as 
-whether additional sources are included.
-"""
-function Models.make_rhs(model::SoilModel)
-    update_aux! = Models.make_update_aux(model)
-    soil_tendency_terms! = Models.make_tendency_terms(model,_)
-    function rhs!(dY, Y, Ya, t)
-        update_aux!(Ya, t)
-        soil_tendency_terms!(dY, Y, Ya, t)
-        return dY
-    end
-    return rhs!
-end
-
-
-function Models.make_update_aux(model::SoilModel)
-    update_aux_en! = Models.make_update_aux(model.energy_model)
-    update_aux_hydr! = Models.make_update_aux(model.hydrology_model)
-    function update_aux!(Ya, t)
-        update_aux_en!(Ya,t)
-        update_aux_hydr!(Ya,t)
+function Models.make_update_aux(model::SoilModel,lm::LandHydrologyModel)
+    update_aux_en! = Models.make_update_aux(model.energy_model, lm)
+    update_aux_hydr! = Models.make_update_aux(model.hydrology_model, lm)
+    function update_aux!(Ya, Y, t)
+        update_aux_en!(Ya,Y, t)
+        update_aux_hydr!(Ya,Y, t)
     end
     return update_aux!
 end
@@ -63,8 +40,8 @@ end
         Returns a function which updates the auxiliary state vector in place by 
         modifying the temperature field to the prescribed current value.
         """
-function Models.make_update_aux(energy::PrescribedTemperatureModel)
-    function update_aux!(Ya, t)
+function Models.make_update_aux(energy::PrescribedTemperatureModel,_)
+    function update_aux!(Ya, Y,t)
         T = Ya.soil.T
         zc = Ya.soil.zc
         T .= energy.T_profile.(zc, t)
@@ -81,8 +58,8 @@ end
 Returns a function which updates the auxiliary state vector in place by 
 modifying the water content fields to the prescribed current value.
 """
-function Models.make_update_aux(hydrology::PrescribedHydrologyModel)
-    function update_aux!(Ya, t)
+function Models.make_update_aux(hydrology::PrescribedHydrologyModel,_)
+    function update_aux!(Ya,Y, t)
         zc = Ya.soil.zc
         @unpack ϑ_l, θ_i = Ya.soil
         ϑ_l .= hydrology.ϑ_l_profile.(zc, t)
@@ -92,6 +69,7 @@ function Models.make_update_aux(hydrology::PrescribedHydrologyModel)
     return update_aux!
 end
 
+
 """
     Models.make_update_aux(
         mode::AbstractSoilComponentModel
@@ -100,8 +78,8 @@ end
 Returns a function which does not update the auxilary state vector.
 This is appropriate for models which do not add auxiliary state variables.
 """
-function Models.make_update_aux(model::AbstractSoilComponentModel)
-    function update_aux!(Ya, t)
+function Models.make_update_aux(model::AbstractSoilComponentModel, _)
+    function update_aux!(Ya,Y, t)
         nothing
     end
     return update_aux!
@@ -112,7 +90,7 @@ end
     Models.make_tendency_terms(model::SoilModel{FT, dm, PrescribedTemperatureModel, PrescribedHydrologyModel},) where {FT,dm}
 
 """
-function Models.make_tendency_terms(model::SoilModel{FT, dm, PrescribedTemperatureModel, PrescribedHydrologyModel},_) where {FT, dm}
+function Models.make_tendency_terms(model::SoilModel{FT, dm, PrescribedTemperatureModel, PrescribedHydrologyModel},lm::LandHydrologyModel) where {FT, dm}
     function tendency_terms!(dY, Y, Ya, t)
         nothing
     end
@@ -124,7 +102,7 @@ end
 
 """
 function Models.make_tendency_terms(
-    model::SoilModel{FT, dm, PrescribedTemperatureModel, SoilHydrologyModel{FT}},_) where {FT, dm}
+    model::SoilModel{FT, dm, PrescribedTemperatureModel, SoilHydrologyModel{FT}},lm::LandHydrologyModel) where {FT, dm}
     function tendency_terms!(dY, Y, Ya, t)
         hydrology = model.hydrology_model
         dϑ_l = dY.soil.ϑ_l
@@ -135,8 +113,6 @@ function Models.make_tendency_terms(
         zc = Ya.soil.zc
 
         cspace = axes(ϑ_l)
-        # construct extended state vector
-        X = Fields.FieldVector(ϑ_l = ϑ_l, θ_i = θ_i, T = T) # blend of state and prescribed variables needed at boundary
         # boundary conditions and parameters
         faces = model.domain.boundary_tags
         bcs = getproperty.(Ref(model.boundary_conditions), faces)
@@ -144,7 +120,8 @@ function Models.make_tendency_terms(
             zip(
                 faces,
                 boundary_fluxes.(
-                    Ref(X),
+                    Ref(Y),
+                    Ref(Ya),
                     bcs,
                     faces,
                     Ref(model),
@@ -193,7 +170,7 @@ end
     Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, PrescribedHydrologyModel},) where {FT, dm}
 
 """
-function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, PrescribedHydrologyModel},_) where {FT, dm}
+function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, PrescribedHydrologyModel},lm::LandHydrologyModel) where {FT, dm}
 
     function tendency_terms!(dY, Y, Ya, t)
         energy = model.energy_model
@@ -225,9 +202,6 @@ function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, Pr
             )
         κ = thermal_conductivity.(κ_dry, kersten, κ_sat)
 
-        # construct extended state vector
-        X = Fields.FieldVector(ϑ_l = ϑ_l, θ_i = θ_i, T = T) # blend of state and prescribed variables needed at boundary
-
         # boundary conditions
         cspace = axes(θ_i)
         faces = model.domain.boundary_tags
@@ -236,7 +210,8 @@ function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, Pr
             zip(
                 faces,
                 boundary_fluxes.(
-                    Ref(X),
+                    Ref(Y),
+                    Ref(Ya),
                     bcs,
                     faces,
                     Ref(model),
@@ -267,7 +242,7 @@ end
     Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, SoilHydrologyModel{FT}}, ) where {FT, dm}
 
 """
-function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, SoilHydrologyModel{FT}},_) where {FT, dm}
+function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, SoilHydrologyModel{FT}},lm::LandHydrologyModel) where {FT, dm}
     function tendency_terms!(dY, Y, Ya, t)
         energy = model.energy_model
         hydrology = model.hydrology_model
@@ -313,8 +288,6 @@ function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, So
         ψ = pressure_head.(Ref(hm), ϑ_l, ν_eff, S_s)
         h = ψ .+ zc
 
-        # Construct extended state vector
-        X = Fields.FieldVector(ϑ_l = ϑ_l, θ_i = θ_i, T = T) # blend of state and prescribed variables needed at boundary
         # boundary conditions
         cspace = axes(θ_i)
         faces = model.domain.boundary_tags
@@ -323,7 +296,8 @@ function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, So
             zip(
                 faces,
                 boundary_fluxes.(
-                    Ref(X),
+                    Ref(Y),
+                    Ref(Ya),
                     bcs,
                     faces,
                     Ref(model),

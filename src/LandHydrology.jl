@@ -2,14 +2,14 @@
 module LandHydrology
 using CLIMAParameters
 using DocStringExtensions
-
+using ClimaCore:Fields
 struct EarthParameterSet <: AbstractEarthParameterSet end
 
 include("Domains/Domains.jl")
 include("Models.jl")
-using .Models: AbstractModel
-import .Models: make_rhs, make_tendency_terms, default_initial_conditions, make_update_aux, initialize_states
-
+using .Models: AbstractModel, NotIncluded
+import .Models:  make_tendency_terms, default_initial_conditions, make_update_aux, initialize_states
+export make_rhs, LandHydrologyModel
 
 """
     LandHydrologyModel{FT<: AbstractFloat, sm <: AbstractModel} <: AbstractModel
@@ -23,8 +23,10 @@ $(DocStringExtensions.FIELDS)
 struct LandHydrologyModel{FT<: AbstractFloat, sm <: AbstractModel, sfcm<:AbstractModel} <: AbstractModel
     "The soil model"
     soil::sm
-    "The surface flow model"
-    sfc_flow::sfcm
+    "The surface water model"
+    sfc_water::sfcm
+    LandHydrologyModel{FT}(soil::sm, sfc_water::sfcm) where {FT, sm, sfcm} = new{FT, sm, sfcm}(
+    soil, sfc_water)
 end
 
 """
@@ -40,19 +42,19 @@ variables that are updated via algebraic equations. Each time the right hand sid
 function is computed, the auxiliary variables must be updated first so that their
 values correspond to the current time `t`. 
 """
-function make_update_aux(model::LandHydrologyModel)
-    soil_update_aux! = Models.make_update_aux(model.soil)
-    sfc_flow_update_aux! = Models.make_update_aux(model.sfc_flow)
+function Models.make_update_aux(model::LandHydrologyModel)
+    soil_update_aux! = Models.make_update_aux(model.soil, model)
+    sfc_water_update_aux! = Models.make_update_aux(model.sfc_water, model)
     function update_aux!(Ya, Y, t)
         soil_update_aux!(Ya, Y, t)
-        sfc_flow_update_aux!(Ya,Y, t)
+        sfc_water_update_aux!(Ya,Y, t)
     end
     return update_aux!
 end
 
 
 """
-    function Models.make_rhs(model::LandHydrologyModel)
+    function make_rhs(model::LandHydrologyModel)
 
 Creates the rhs!(dY, Y, Ya t) function for the entire land model,
 where dY is the rhs of the ODE evaluated at the current prognostic state `Y`,
@@ -76,14 +78,14 @@ If you do not define a
 method of `make_rhs!` for your specific model type, the default is not
 to update the prognostic state `Y`: `dY = 0`.
 """
-function Models.make_rhs(model::LandHydrologyModel)
+function make_rhs(model::LandHydrologyModel)
     update_aux! = make_update_aux(model)
     soil_tendency_terms! = Models.make_tendency_terms(model.soil, model)
-    sfc_flow_tendency_terms! = Models.make_tendency_terms(model.sfc_flow, model)
+    sfc_water_tendency_terms! = Models.make_tendency_terms(model.sfc_water, model)
     function rhs!(dY, Y, Ya, t)
         update_aux!(Ya,Y,t)
         soil_tendency_terms!(dY,Y, Ya, t)
-        sfc_flow_tendency_terms(dY,Y,Ya,t)
+        sfc_water_tendency_terms!(dY,Y,Ya,t)
     end
     return rhs!
 end
@@ -91,16 +93,14 @@ end
 
 
 function Models.initialize_states(model::LandHydrologyModel, f::NamedTuple, t0::Real)
-    subcomponents = (:soil,)
+    subcomponents = (:soil, :sfc_water)
     Y = Dict()
     Ya = Dict()
     for sc_name in subcomponents
         sc_model = getproperty(model, sc_name)
-        Y_sc, Ya_sc = Models.initialize_states(sc_model, getproperty(f, sc_name), t0)
-        if sizeof(Y_sc) > 0
+        if typeof(sc_model) != NotIncluded
+            Y_sc, Ya_sc = Models.initialize_states(sc_model, getproperty(f, sc_name), t0)
             push!(Y, sc_name => getproperty(Y_sc, sc_name))
-        end
-        if sizeof(Ya_sc) > 0
             push!(Ya, sc_name => getproperty(Ya_sc, sc_name))
         end
         
@@ -109,16 +109,15 @@ function Models.initialize_states(model::LandHydrologyModel, f::NamedTuple, t0::
 end
 
 function Models.default_initial_conditions(model::LandHydrologyModel)
-    subcomponents = (:soil,)
+    subcomponents = (:soil, :sfc_water)
     Y = Dict()
     Ya = Dict()
     for sc_name in subcomponents
         sc_model = getproperty(model, sc_name)
-        Y_sc, Ya_sc = Models.default_initial_conditions(sc_model)
-        if sizeof(Y_sc) > 0
+        sc_model = getproperty(model, sc_name)
+        if typeof(sc_model) != NotIncluded
+            Y_sc, Ya_sc = Models.default_initial_conditions(sc_model)
             push!(Y, sc_name => getproperty(Y_sc, sc_name))
-        end
-        if sizeof(Ya_sc) > 0
             push!(Ya, sc_name => getproperty(Ya_sc, sc_name))
         end
         
@@ -129,6 +128,7 @@ end
 
 
 include(joinpath("SoilModel", "SoilInterface.jl"))
+include(joinpath("SurfaceFlowModel", "SurfaceWater.jl"))
 include("Simulations/Simulations.jl")
 
 end # module

@@ -62,7 +62,6 @@ function aux_vars(m::AbstractSoilComponentModel)
     return (t, z) -> (;)
 end
 
-
 """
      Models.initialize_states(model::SoilModel, f::Function, t0::Real)
 
