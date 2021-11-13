@@ -51,7 +51,7 @@ soil_model = SoilModel(
 )
 surface = SurfaceWaterModel{FT}()
 function initial_conditions_sfc(z, model)
-    return (h = 0.0)
+    return (;h = 0.0)
 end
 
 precip = FT(-1e-10)
@@ -64,7 +64,7 @@ function initial_conditions(z, model)
     θ_l = 0.494
     return (ϑ_l = θ_l, θ_i = θ_i)
 end
-Y, Ya = initialize_states(land_model, (;soil =initial_conditions,), t0)
+Y, Ya = initialize_states(land_model, (;soil =initial_conditions,sfc_water = initial_conditions_sfc))
 land_rhs! = make_rhs(land_model)
 land_sim = Simulation(
     land_model,
@@ -84,4 +84,4 @@ run!(land_sim)
 sol = land_sim.integrator.sol
 
 z = parent(Ya.soil.zc)
-ϑ_l = [parent(sol.u[k].soil.ϑ_l) for k in 1:length(sol.u)]
+

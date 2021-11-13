@@ -67,7 +67,7 @@
         return (; ρe_int = ρe_int)
     end
 
-    Y, Ya = initialize_states(land_model, (;soil =energy_ic,), t0)
+    Y, Ya = initialize_states(land_model, (;soil =energy_ic,))
     land_rhs! = make_rhs(land_model)
     land_sim = Simulation(
         land_model,

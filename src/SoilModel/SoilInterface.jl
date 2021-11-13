@@ -7,7 +7,7 @@ using DocStringExtensions
 using UnPack
 
 using LandHydrology: EarthParameterSet, LandHydrologyModel
-using LandHydrology.Domains: AbstractVerticalDomain, make_function_space, Column
+using LandHydrology.Domains: AbstractVerticalDomain, make_function_space, Column, coordinates, zero_field
 using LandHydrology.Models: AbstractModel
 import LandHydrology: Models, make_tendency_terms, make_update_aux, initialize_states
 

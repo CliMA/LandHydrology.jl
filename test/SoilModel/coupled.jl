@@ -86,7 +86,7 @@
         ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, param_set)
         return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
     end
-    Y, Ya = initialize_states(land_model, (;soil =initial_conditions,), t0)
+    Y, Ya = initialize_states(land_model, (;soil =initial_conditions,))
     land_rhs! = make_rhs(land_model)
     prob = ODEProblem(land_rhs!, Y, (t0, tf), Ya)
 

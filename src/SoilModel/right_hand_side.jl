@@ -1,24 +1,5 @@
 # We may still be able to preserve not using LandModel (make_rhs(soil_model))
 
-export coordinates
-
-"""
-    coordinates(cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field
-Returns the `z` coordinates of the space passed as an argument.
-"""
-coordinates(cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field =
-    getproperty(Fields.coordinate_field(cs), :z)
-
-
-"""
-    zero_field(ft, cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field
-Wrapper function returning a field on the space `cs`,
-with all values = 0, of type `ft`.
-"""
-zero_field(ft, cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field =
-    Fields.zeros(ft, cs)
-
-
 function Models.make_update_aux(model::SoilModel,lm::LandHydrologyModel)
     update_aux_en! = Models.make_update_aux(model.energy_model, lm)
     update_aux_hydr! = Models.make_update_aux(model.hydrology_model, lm)

@@ -104,14 +104,14 @@ end
 
 
 
-function Models.initialize_states(model::LandHydrologyModel, f::NamedTuple, t0::Real)
+function Models.initialize_states(model::LandHydrologyModel, f::NamedTuple)
     subcomponents = (:soil, :sfc_water)
     Y = Dict()
     Ya = Dict()
     for sc_name in subcomponents
         sc_model = getproperty(model, sc_name)
         if typeof(sc_model) != NotIncluded
-            Y_sc, Ya_sc = Models.initialize_states(sc_model, getproperty(f, sc_name), t0)
+            Y_sc, Ya_sc = Models.initialize_states(sc_model, getproperty(f, sc_name))
             push!(Y, sc_name => getproperty(Y_sc, sc_name))
             push!(Ya, sc_name => getproperty(Ya_sc, sc_name))
         end

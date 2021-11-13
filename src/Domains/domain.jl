@@ -1,3 +1,4 @@
+export coordinates, zero_field
 """
     Column{FT} <: AbstractVerticalDomain
 
@@ -67,3 +68,19 @@ function make_function_space(domain::Column{FT}) where {FT}
 
     return center_space, face_space
 end
+
+"""
+    coordinates(cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field
+Returns the `z` coordinates of the space passed as an argument.
+"""
+coordinates(cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field =
+    getproperty(Fields.coordinate_field(cs), :z)
+
+
+"""
+    zero_field(ft, cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field
+Wrapper function returning a field on the space `cs`,
+with all values = 0, of type `ft`.
+"""
+zero_field(ft, cs::Spaces.CenterFiniteDifferenceSpace)::Fields.Field =
+    Fields.zeros(ft, cs)

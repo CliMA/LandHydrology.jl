@@ -57,7 +57,7 @@
         θ_l = 0.494
         return (ϑ_l = θ_l, θ_i = θ_i)
     end
-    Y, Ya = initialize_states(land_model, (;soil =initial_conditions,), t0)
+    Y, Ya = initialize_states(land_model, (;soil =initial_conditions,))
     land_rhs! = make_rhs(land_model)
     land_sim = Simulation(
         land_model,
@@ -151,7 +151,7 @@ end
         return (ϑ_l = θ_l, θ_i = θ_i)
     end
 
-    Y, Ya = initialize_states(land_model, (;soil =ic,), t0)
+    Y, Ya = initialize_states(land_model, (;soil =ic,))
     land_rhs! = make_rhs(land_model)
     land_sim = Simulation(
         land_model,

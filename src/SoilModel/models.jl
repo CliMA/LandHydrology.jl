@@ -153,8 +153,7 @@ function Models.default_initial_conditions(
         ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, param_set)
         return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
     end
-    t0 = f(0.0)
-    return Models.initialize_states(model, ic, t0)
+    return Models.initialize_states(model, ic)
 end
 
 function Models.default_initial_conditions(model::SoilModel)

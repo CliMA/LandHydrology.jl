@@ -4,7 +4,7 @@ using ClimaCore
 using Printf
 using DocStringExtensions
 
-import ClimaCore: Meshes, Spaces, Topologies, Geometry
+import ClimaCore: Meshes, Spaces, Topologies, Geometry, Fields
 
 """
     AbstractDomain
