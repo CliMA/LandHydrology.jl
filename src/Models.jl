@@ -23,7 +23,7 @@ abstract type AbstractTendencyTerm end
 Construct the initial conditions for `model`.
 """
 function default_initial_conditions(model::AbstractModel)
-    return Fields.FieldVector(;)
+    return Fields.FieldVector(;),Fields.FieldVector(;)
 end
 
 """
@@ -32,7 +32,7 @@ end
 Initialize the prognostic and auxiliary FieldVectors for `model`.
 """
 function initialize_states(model::AbstractModel)
-    return Fields.FieldVector(;)
+    return Fields.FieldVector(;),Fields.FieldVector(;)
 end
 
 """

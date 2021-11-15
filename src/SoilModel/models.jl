@@ -2,11 +2,7 @@ export SoilHydrologyModel,
     SoilModel,
     PrescribedTemperatureModel,
     PrescribedHydrologyModel,
-    SoilEnergyModel,
-    compute_infiltration
-
-function compute_infiltration(_,_,_) return 0.0 end
-
+    SoilEnergyModel
 
 abstract type AbstractSoilComponentModel end
 """
@@ -143,7 +139,7 @@ at half of porosity.
 function Models.default_initial_conditions(
     model::SoilModel{f, dm, SoilEnergyModel, SoilHydrologyModel{f}},
 ) where {f, dm}
-    function ic(z::f, m::SoilModel)
+    function default_ic(z::f, m::SoilModel)
         param_set = model.earth_param_set
         T = f(273.16)
         θ_i = f(0.0)
@@ -153,7 +149,7 @@ function Models.default_initial_conditions(
         ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, param_set)
         return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
     end
-    return Models.initialize_states(model, ic)
+    return Models.initialize_states(model, default_ic)
 end
 
 function Models.default_initial_conditions(model::SoilModel)

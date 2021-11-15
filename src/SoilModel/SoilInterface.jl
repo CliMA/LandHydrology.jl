@@ -6,6 +6,7 @@ using CLIMAParameters.Planet: T_0
 using DocStringExtensions
 using UnPack
 
+using Statistics: mean
 using LandHydrology: EarthParameterSet, LandHydrologyModel
 using LandHydrology.Domains: AbstractVerticalDomain, make_function_space, Column, coordinates, zero_field
 using LandHydrology.Models: AbstractModel

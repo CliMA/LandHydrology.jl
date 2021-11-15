@@ -55,9 +55,11 @@ function is computed, the auxiliary variables must be updated first so that thei
 values correspond to the current time `t`. 
 """
 function Models.make_update_aux(model::LandHydrologyModel)
+    interactions_update_aux! = Models.make_update_aux(model.soil, model.sfc_water, model)
     soil_update_aux! = Models.make_update_aux(model.soil, model)
     sfc_water_update_aux! = Models.make_update_aux(model.sfc_water, model)
     function update_aux!(Ya, Y, t)
+        interactions_update_aux!(Ya, Y, t)
         soil_update_aux!(Ya, Y, t)
         sfc_water_update_aux!(Ya,Y, t)
     end
@@ -104,7 +106,7 @@ end
 
 
 
-function Models.initialize_states(model::LandHydrologyModel, f::NamedTuple)
+function Models.initialize_states(model::LandHydrologyModel, f::NamedTuple )
     subcomponents = (:soil, :sfc_water)
     Y = Dict()
     Ya = Dict()
@@ -112,11 +114,17 @@ function Models.initialize_states(model::LandHydrologyModel, f::NamedTuple)
         sc_model = getproperty(model, sc_name)
         if typeof(sc_model) != NotIncluded
             Y_sc, Ya_sc = Models.initialize_states(sc_model, getproperty(f, sc_name))
-            push!(Y, sc_name => getproperty(Y_sc, sc_name))
-            push!(Ya, sc_name => getproperty(Ya_sc, sc_name))
+            if sizeof(Y_sc) > 0.0
+                push!(Y, sc_name => getproperty(Y_sc, sc_name))
+            end
+            if sizeof(Ya_sc) >0.0
+                push!(Ya, sc_name => getproperty(Ya_sc, sc_name))
+            end
         end
         
+        
     end
+    push!(Ya, :soil_infiltration => [0.0],)
     return Fields.FieldVector(; Y...),Fields.FieldVector(; Ya...)
 end
 
@@ -126,21 +134,24 @@ function Models.default_initial_conditions(model::LandHydrologyModel)
     Ya = Dict()
     for sc_name in subcomponents
         sc_model = getproperty(model, sc_name)
-        sc_model = getproperty(model, sc_name)
         if typeof(sc_model) != NotIncluded
             Y_sc, Ya_sc = Models.default_initial_conditions(sc_model)
-            push!(Y, sc_name => getproperty(Y_sc, sc_name))
-            push!(Ya, sc_name => getproperty(Ya_sc, sc_name))
+            if sizeof(Y_sc) > 0.0
+                push!(Y, sc_name => getproperty(Y_sc, sc_name))
+            end
+            if sizeof(Ya_sc) >0.0
+                push!(Ya, sc_name => getproperty(Ya_sc, sc_name))
+            end
         end
         
+        
     end
+    push!(Ya, :soil_infiltration => [0.0],)
     return Fields.FieldVector(; Y...),Fields.FieldVector(; Ya...)
 end
-
-
-
 include(joinpath("SoilModel", "SoilInterface.jl"))
 include(joinpath("SurfaceFlowModel", "SurfaceWater.jl"))
+include("Interactions/Interactions.jl")
 include("Simulations/Simulations.jl")
 
 end # module

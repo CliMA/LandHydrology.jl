@@ -1,5 +1,5 @@
 export VerticalFlux,
-    Dirichlet, FreeDrainage, SoilColumnBC, SoilComponentBC, NoBC, SurfaceWater
+    Dirichlet, FreeDrainage, SoilColumnBC, SoilComponentBC, NoBC, SurfaceWaterBC, boundary_fluxes
 abstract type AbstractBC end
 
 """
@@ -29,7 +29,7 @@ struct VerticalFlux{f <: AbstractFloat} <: AbstractBC
     flux::f
 end
 
-struct SurfaceWater <: AbstractBC end
+struct SurfaceWaterBC <: AbstractBC end
 
 """
     FreeDrainage <: AbstractBC
@@ -337,8 +337,8 @@ function vertical_flux(
     K = hydraulic_conductivity.(Ref(hm), S, viscosity_f, impedance_f)
 
     ψ = pressure_head.(Ref(hm), ϑ_l, ν_eff, S_s)
-
-    flux = -K[2] * (ψ[2] - ψ[1] + dz) / dz
+    Keff = mean(K)
+    flux = -Keff * (ψ[2] - ψ[1] + dz) / dz
     if face == :bottom # at the bottom
         flux *= -1
     end
@@ -381,8 +381,8 @@ function vertical_flux(
     κ_sat =
         saturated_thermal_conductivity.(θ_l, θ_i, κ_sat_unfrozen, κ_sat_frozen)
     κ = thermal_conductivity.(κ_dry, kersten, κ_sat) # at face
-
-    flux = -κ[2] * (T[2] - T[1]) / dz
+    κeff = mean(κ)
+    flux = -κeff * (T[2] - T[1]) / dz
     if face == :bottom # at the bottom
         flux *= -1
     end
@@ -428,7 +428,7 @@ function boundary_fluxes(
     return (fρe_int = fρe_int, fϑ_l = fϑ_l)
 end
 
-function vertical_flux(bc::SurfaceWater,
+function vertical_flux(bc::SurfaceWaterBC,
                        hydrology::SoilHydrologyModel{FT},
                        X_cf,
                        soil::SoilModel,
@@ -436,5 +436,5 @@ function vertical_flux(bc::SurfaceWater,
                        face::Symbol,
                        Y::Fields.FieldVector,
                        Ya::Fields.FieldVector) where {FT}
-    return Ya.sfc_water.infiltration
+    return Ya.soil_infiltration[1]
 end
