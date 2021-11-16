@@ -55,7 +55,7 @@ function is computed, the auxiliary variables must be updated first so that thei
 values correspond to the current time `t`. 
 """
 function Models.make_update_aux(model::LandHydrologyModel)
-    interactions_update_aux! = Models.make_update_aux(model.soil, model.sfc_water, model)
+    interactions_update_aux! = Models.make_update_aux(model.atmos_state, model.soil, model.sfc_water, model)
     soil_update_aux! = Models.make_update_aux(model.soil, model)
     sfc_water_update_aux! = Models.make_update_aux(model.sfc_water, model)
     function update_aux!(Ya, Y, t)
@@ -124,7 +124,7 @@ function Models.initialize_states(model::LandHydrologyModel, f::NamedTuple )
         
         
     end
-    push!(Ya, :soil_infiltration => [0.0],)
+    push!(Ya, :soil_infiltration => 0.0,)
     return Fields.FieldVector(; Y...),Fields.FieldVector(; Ya...)
 end
 
@@ -146,7 +146,7 @@ function Models.default_initial_conditions(model::LandHydrologyModel)
         
         
     end
-    push!(Ya, :soil_infiltration => [0.0],)
+    push!(Ya, :soil_infiltration => 0.0,)
     return Fields.FieldVector(; Y...),Fields.FieldVector(; Ya...)
 end
 include(joinpath("SoilModel", "SoilInterface.jl"))

@@ -24,7 +24,7 @@ using ArtifactWrappers
 using DelimitedFiles
 
 include("test_domains.jl")
-
+#=
 @testset "LandHydrology unit tests" begin
 end
 
@@ -32,7 +32,7 @@ end
     @info "Testing the soil and surface model together"
     include("SurfaceWater/joint.jl")
 end
-
+=#
 @testset "Soil Model" begin
     @info "Testing LandHydrology Soil model"
     include("SoilModel/coupled.jl")

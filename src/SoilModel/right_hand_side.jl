@@ -134,10 +134,10 @@ function Models.make_tendency_terms(
         gradc2f_water = Operators.GradientC2F()
         divf2c_water = Operators.DivergenceF2C(
             top = Operators.SetValue(
-                Geometry.Cartesian3Vector(fluxes.top.fϑ_l),
+                Geometry.WVector(fluxes.top.fϑ_l),
             ),
             bottom = Operators.SetValue(
-                Geometry.Cartesian3Vector(fluxes.bottom.fϑ_l),
+                Geometry.WVector(fluxes.bottom.fϑ_l),
             ),
         )
 
@@ -208,10 +208,10 @@ function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, Pr
         gradc2f_heat = Operators.GradientC2F()
         divf2c_heat = Operators.DivergenceF2C(
             top = Operators.SetValue(
-                Geometry.Cartesian3Vector(fluxes.top.fρe_int),
+                Geometry.WVector(fluxes.top.fρe_int),
             ),
             bottom = Operators.SetValue(
-                Geometry.Cartesian3Vector(fluxes.bottom.fρe_int),
+                Geometry.WVector(fluxes.bottom.fρe_int),
             ),
         )
         @. dρe_int = -divf2c_heat(-interpc2f(κ) * gradc2f_heat(T))
@@ -293,20 +293,20 @@ function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, So
         gradc2f_heat = Operators.GradientC2F()
         divf2c_heat = Operators.DivergenceF2C(
             top = Operators.SetValue(
-                Geometry.Cartesian3Vector(fluxes.top.fρe_int),
+                Geometry.WVector(fluxes.top.fρe_int),
             ),
             bottom = Operators.SetValue(
-                Geometry.Cartesian3Vector(fluxes.bottom.fρe_int),
+                Geometry.WVector(fluxes.bottom.fρe_int),
             ),
         )
 
         gradc2f_water = Operators.GradientC2F()
         divf2c_water = Operators.DivergenceF2C(
             top = Operators.SetValue(
-                Geometry.Cartesian3Vector(fluxes.top.fϑ_l),
+                Geometry.WVector(fluxes.top.fϑ_l),
             ),
             bottom = Operators.SetValue(
-                Geometry.Cartesian3Vector(fluxes.bottom.fϑ_l),
+                Geometry.WVector(fluxes.bottom.fϑ_l),
             ),
         )
 

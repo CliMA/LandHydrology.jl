@@ -17,7 +17,7 @@ function Models.make_tendency_terms(model::SurfaceWaterModel{FT},
                                     lm::LandHydrologyModel{FT, sm, SurfaceWaterModel{FT}, PrescribedAtmosState{FT, FT}},
                                     ) where {FT, sm}
     function tendency_terms!(dY, Y, Ya, t)
-        infiltration = Ya.soil_infiltration[1]
+        infiltration = Ya.soil_infiltration
         cs = axes(Y.sfc_water.h)
         dY.sfc_water.h .= zero_field(FT, cs) .-(lm.atmos_state.precipitation - infiltration)
     end

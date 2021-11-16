@@ -436,5 +436,5 @@ function vertical_flux(bc::SurfaceWaterBC,
                        face::Symbol,
                        Y::Fields.FieldVector,
                        Ya::Fields.FieldVector) where {FT}
-    return Ya.soil_infiltration[1]
+    return Ya.soil_infiltration
 end
