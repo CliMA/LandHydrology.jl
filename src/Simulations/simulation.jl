@@ -8,7 +8,7 @@ time integration of the discretized model PDE.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct Simulation{ML <: AbstractModel} <: AbstractSimulation
+struct Simulation{ML <: AbstractLandModel} <: AbstractSimulation
     "A LandHydrology model"
     model::ML
     "a DiffEqBase.jl integrator used for time"
@@ -32,7 +32,7 @@ Note that if `Y_init` is supplied, `Ya_init` must also be supplied. If `Y_init` 
 not supplied, a default state is created for both `Y_init` and `Ya_init`.
 """
 function Simulation(
-    model::AbstractModel,
+    model::AbstractLandModel,
     method;
     Y_init,
     dt,
@@ -47,7 +47,7 @@ function Simulation(
         println(
             "Creating default state for both prognostic and auxiliary states...",
         )
-        Y, Ya = default_initial_conditions(soil_model)
+        Y, Ya = default_initial_conditions(model)
     else
         Y, Ya = Y_init, Ya_init
     end

@@ -3,7 +3,7 @@ module Simulations
 using DiffEqBase
 
 # using ClimaAtmos.Callbacks
-using LandHydrology.Models: AbstractModel
+using LandHydrology: AbstractLandModel
 using LandHydrology: make_rhs
 using ClimaCore: Fields
 using DocStringExtensions

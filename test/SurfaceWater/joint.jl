@@ -1,5 +1,7 @@
 using ClimaCore: Fields
 using CLIMAParameters
+struct EarthParameterSet <: AbstractEarthParameterSet end
+param_set = EarthParameterSet()
 using CLIMAParameters.Planet: T_0
 using UnPack
 using OrdinaryDiffEq:
@@ -8,10 +10,8 @@ using OrdinaryDiffEq:
     SSPRK33,
     SSPRK73
 using LandHydrology
-using LandHydrology: make_rhs, LandHydrologyModel
-using LandHydrology.Models: default_initial_conditions, make_tendency_terms, make_update_aux, initialize_states, NotIncluded
-using LandHydrology: EarthParameterSet
-const param_set = EarthParameterSet()
+using LandHydrology: make_rhs, LandHydrologyModel, initialize_land_states, default_land_initial_conditions
+using LandHydrology.SubComponentModels: default_initial_conditions, make_tendency_terms, make_update_aux, NotIncluded
 using LandHydrology.Domains: Column, make_function_space
 using LandHydrology.SoilInterface
 using LandHydrology.SoilInterface.SoilWaterParameterizations
@@ -73,22 +73,19 @@ using LandHydrology.SurfaceWater: SurfaceWaterModel
         ),
         boundary_conditions = bc,
         soil_param_set = msp,
-        earth_param_set = param_set,
     )
     
     surface = NotIncluded()
     
     precip = FT(-5e-7)
-    land_model = LandHydrologyModel{FT}(soil_model,surface; atmos_state = PrescribedAtmosState{FT}(precip))
-    # initial conditions
-    @test_throws ErrorException default_initial_conditions(soil_model)
-    @test_throws ErrorException default_initial_conditions(land_model)
-    function initial_conditions(z, model)
+    land_model = LandHydrologyModel{FT}(soil_model,surface, param_set; atmos_state = PrescribedAtmosState{FT}(precip))
+
+    function initial_conditions(z, land_model, model)
         θ_i = 0.0
         θ_l = 0.4
         return (ϑ_l = θ_l, θ_i = θ_i)
     end
-    Y, Ya = initialize_states(land_model, (;soil =initial_conditions))#,sfc_water = initial_conditions_sfc))
+    Y, Ya = initialize_land_states(land_model, (;soil =initial_conditions))#,sfc_water = initial_conditions_sfc))
     land_rhs! = make_rhs(land_model)
     land_sim = Simulation(
         land_model,
@@ -160,26 +157,22 @@ end
         ),
         boundary_conditions = bc,
         soil_param_set = msp,
-        earth_param_set = param_set,
     )
     
     
     surface = SurfaceWaterModel{FT}()
-    function initial_conditions_sfc(z, model)
+    function initial_conditions_sfc(z, _)
         return (;h = 0.0)
     end
     
     precip = FT(-5e-7)
-    land_model = LandHydrologyModel{FT}(soil_model,surface; atmos_state = PrescribedAtmosState{FT}(precip))
-    # initial conditions
-    @test_throws ErrorException default_initial_conditions(soil_model)
-    @test_throws ErrorException default_initial_conditions(land_model)
-    function initial_conditions(z, model)
+    land_model = LandHydrologyModel{FT}(soil_model,surface, param_set; atmos_state = PrescribedAtmosState{FT}(precip))
+    function initial_conditions(z, _...)
         θ_i = 0.0
         θ_l = 0.4
         return (ϑ_l = θ_l, θ_i = θ_i)
     end
-    Y, Ya = initialize_states(land_model, (;soil =initial_conditions,sfc_water = initial_conditions_sfc))
+    Y, Ya = initialize_land_states(land_model, (;soil =initial_conditions,sfc_water = initial_conditions_sfc))
     land_rhs! = make_rhs(land_model)
     land_sim = Simulation(
         land_model,
@@ -199,6 +192,7 @@ end
     sol = land_sim.integrator.sol
     
     z = parent(Ya.soil.zc)
+    h = [parent(sol.u[k].sfc_water.h)[1] for k in 1:520]
     # seems reasonable
 end
 

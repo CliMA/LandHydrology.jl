@@ -1,20 +1,39 @@
 module SurfaceWater
 using ClimaCore: Fields, Operators
 using LandHydrology.Domains: zero_field
-import LandHydrology: Models, make_tendency_terms, default_initial_conditions, make_update_aux, initialize_states, AbstractModel, LandHydrologyModel, PrescribedAtmosState
+import LandHydrology: SubComponentModels, make_tendency_terms, default_initial_conditions, make_update_aux, initialize_states, AbstractModel
+using LandHydrology: LandHydrologyModel, PrescribedAtmosState
 using LandHydrology.SoilInterface: SoilModel
 using LandHydrology.Domains: AbstractVerticalDomain, make_function_space, Column, coordinates, zero_field
 export SurfaceWaterModel, get_surface_height
 
+"""
+    SurfaceWaterModel{FT<:AbstractFloat} <: AbstractModel
+
+A concrete type for a simple surface water model, which keeps track of the height of the surface
+water as a prognostic variable. 
+
+*****The `domain` fields should be reconsidered for non-column models. For column models,
+this shouldn't need to be a Field.
+"""
 Base.@kwdef struct SurfaceWaterModel{FT<:AbstractFloat} <: AbstractModel
     domain::Column = Column(;zlim = (-0.05,0.05),nelements=1)
     name::Symbol = :sfc_water
 end
 
 
-### would like type sm to be SoilModel
-function Models.make_tendency_terms(model::SurfaceWaterModel{FT},
-                                    lm::LandHydrologyModel{FT, sm, SurfaceWaterModel{FT}, PrescribedAtmosState{FT, FT}},
+"""
+    SubComponentModels.make_tendency_terms(model::SurfaceWaterModel{FT},
+                                lm::LandHydrologyModel{FT, sm, SurfaceWaterModel{FT},},
+                                ) where {FT, sm}
+
+Constructs the function which evaluates the tendency of the surface water height.
+
+****This requires an atmosphere model, so we should also be using that in the parametric
+type signature of the LandHydrologyModel.
+"""
+function SubComponentModels.make_tendency_terms(model::SurfaceWaterModel{FT},
+                                    lm::LandHydrologyModel{FT, sm, SurfaceWaterModel{FT},},
                                     ) where {FT, sm}
     function tendency_terms!(dY, Y, Ya, t)
         infiltration = Ya.soil_infiltration
@@ -25,25 +44,52 @@ function Models.make_tendency_terms(model::SurfaceWaterModel{FT},
     return tendency_terms!
 end
 
-function Models.default_initial_conditions(model::SurfaceWaterModel{FT}) where {FT}
+"""
+    SubComponentModels.default_initial_conditions(model::SurfaceWaterModel{FT},
+                                                  lm::LandHydrologyModel{FT, sm, SurfaceWaterModel{FT}, }
+                                                  ) where {FT, sm}
+
+Sets up the default initial condition function for the `SurfaceWaterModel`.
+"""
+function SubComponentModels.default_initial_conditions(model::SurfaceWaterModel{FT},
+                                                       lm::LandHydrologyModel{FT, sm, SurfaceWaterModel{FT}, }
+                                                       ) where {FT, sm}
     function default_ic(z::FT)
         return (; h = FT(0.0))
     end
-    return Models.initialize_state(model, default_ic)
+    return SubComponentModels.initialize_state(model, default_ic)
 end
 
-function Models.initialize_states(model::SurfaceWaterModel{FT} ,f::Function) where {FT}
+"""
+    SubComponentModels.initialize_states(model::SurfaceWaterModel{FT},
+                                         lm::LandHydrologyModel{FT, sm, SurfaceWaterModel{FT},},
+                                         f::Function) where {FT, sm}
+
+Given an initial condition function `f`, computes the initial prognostic state of the `SurfaceWaterModel`.
+
+"""
+function SubComponentModels.initialize_states(model::SurfaceWaterModel{FT},
+                                              lm::LandHydrologyModel{FT, sm, SurfaceWaterModel{FT},},
+                                              f::Function) where {FT, sm}
     space_c, _ = make_function_space(model.domain)
     zc = coordinates(space_c)
-    Y0 = Fields.FieldVector(; model.name => f.(zc, Ref(model)))
-    Ya = Fields.FieldVector(; )
-    return Y0, Ya
+    return f.(zc, Ref(model)), nothing
 end
 
+"""
+    get_surface_height(model::SurfaceWaterModel{FT}, Y) where {FT}
+
+Helper function which returns the height of the surface water.
+"""
 function get_surface_height(model::SurfaceWaterModel{FT}, Y) where {FT}
     return Operators.getidx(Y.sfc_water.h, Operators.Interior(),1)
 end
 
+"""
+    get_surface_height(model::AbstractModel, Y) where {FT}
+
+Helper function which returns the height of the surface water.
+"""
 function get_surface_height(model::AbstractModel, Y)
     return eltype(Y)(0.0)
 end

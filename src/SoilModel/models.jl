@@ -87,7 +87,7 @@ The model type for the soil model.
 # Fields
 $(DocStringExtensions.FIELDS)
 """
-struct SoilModel{FT, dm, em, hm, bc, sp, ep, n} <: AbstractModel
+struct SoilModel{FT, dm, em, hm, bc, sp, n} <: AbstractModel
     domain::dm
     "Soil energy model - prescribed or dynamics"
     energy_model::em
@@ -97,8 +97,6 @@ struct SoilModel{FT, dm, em, hm, bc, sp, ep, n} <: AbstractModel
     boundary_conditions::bc
     "Soil parameters"
     soil_param_set::sp
-    "Earth parameter set"
-    earth_param_set::ep
     "name"
     name::n
 end
@@ -110,7 +108,6 @@ function SoilModel(
     hydrology_model::AbstractSoilComponentModel,
     boundary_conditions::BC,
     soil_param_set::SoilParams{FT} = SoilParams{FT}(),
-    earth_param_set::EarthParameterSet = EarthParameterSet(),
     name::Symbol = :soil,
 ) where {FT, BC}
     args = (
@@ -119,7 +116,6 @@ function SoilModel(
         hydrology_model,
         boundary_conditions,
         soil_param_set,
-        earth_param_set,
         name,
     )
     return SoilModel{FT, typeof.(args)...}(args...)
@@ -136,11 +132,11 @@ The default is an isothermal soil, at the reference temperature T0,
 no ice, and a volumetric water fraction constant throughout the domain,
 at half of porosity.
 """
-function Models.default_initial_conditions(
-    model::SoilModel{f, dm, SoilEnergyModel, SoilHydrologyModel{f}},
+function SubComponentModels.default_initial_conditions(
+    model::SoilModel{f, dm, SoilEnergyModel, SoilHydrologyModel{f}},lm::LandHydrologyModel,
 ) where {f, dm}
-    function default_ic(z::f, m::SoilModel)
-        param_set = model.earth_param_set
+    function default_ic(z::f, m::SoilModel, lm::LandHydrologyModel)
+        param_set = lm.earth_param_set
         T = f(273.16)
         θ_i = f(0.0)
         θ_l = f(0.5) * model.soil_param_set.ν
@@ -149,22 +145,17 @@ function Models.default_initial_conditions(
         ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, param_set)
         return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
     end
-    return Models.initialize_states(model, default_ic)
-end
-
-function Models.default_initial_conditions(model::SoilModel)
-    error("No default IC exist for this type of soil model.")
+    return SubComponentModels.initialize_states(model, ps, default_ic)
 end
 
 
 
-
-function get_temperature(model::SoilModel{f, dm, SoilEnergyModel,}, Y::Fields.FieldVector, Ya::Fields.FieldVector) where {dm, f}
+function get_temperature(model::SoilModel{f, dm, SoilEnergyModel,}, ps::AbstractEarthParameterSet, Y::Fields.FieldVector, Ya::Fields.FieldVector) where {dm, f}
     ρe_int = Y.soil.ρe_int
     ϑ_l, θ_i = get_water_content(model.hydrology_model, Y, Ya)
     # Parameters
     sp = model.soil_param_set
-    param_set = model.earth_param_set
+    param_set = ps
     @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
     
     # Compute center values of everything
@@ -177,7 +168,7 @@ function get_temperature(model::SoilModel{f, dm, SoilEnergyModel,}, Y::Fields.Fi
 end
 
 
-function get_temperature(model::SoilModel{f, dm, PrescribedTemperatureModel,}, Y::Fields.FieldVector, Ya::Fields.FieldVector) where {dm, f}
+function get_temperature(model::SoilModel{f, dm, PrescribedTemperatureModel,}, ps::AbstractEarthParameterSet, Y::Fields.FieldVector, Ya::Fields.FieldVector) where {dm, f}
     return Ya.soil.T
 end
 

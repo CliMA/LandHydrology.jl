@@ -1,8 +1,8 @@
 # We may still be able to preserve not using LandModel (make_rhs(soil_model))
 
-function Models.make_update_aux(model::SoilModel,lm::LandHydrologyModel)
-    update_aux_en! = Models.make_update_aux(model.energy_model, lm)
-    update_aux_hydr! = Models.make_update_aux(model.hydrology_model, lm)
+function SubComponentModels.make_update_aux(model::SoilModel,lm::LandHydrologyModel)
+    update_aux_en! = SubComponentModels.make_update_aux(model.energy_model, lm)
+    update_aux_hydr! = SubComponentModels.make_update_aux(model.hydrology_model, lm)
     function update_aux!(Ya, Y, t)
         update_aux_en!(Ya,Y, t)
         update_aux_hydr!(Ya,Y, t)
@@ -14,14 +14,14 @@ end
 
 
 """
-            Models.make_update_aux(
+            SubComponentModels.make_update_aux(
                 energy::PrescribedTemperatureModel,
             )
     
         Returns a function which updates the auxiliary state vector in place by 
         modifying the temperature field to the prescribed current value.
         """
-function Models.make_update_aux(energy::PrescribedTemperatureModel,_)
+function SubComponentModels.make_update_aux(energy::PrescribedTemperatureModel,_)
     function update_aux!(Ya, Y,t)
         T = Ya.soil.T
         zc = Ya.soil.zc
@@ -32,14 +32,14 @@ function Models.make_update_aux(energy::PrescribedTemperatureModel,_)
 end
 
 """
-        Models.make_update_aux(
+        SubComponentModels.make_update_aux(
         hydrology::PrescribedHydrologyModel
     )
 
 Returns a function which updates the auxiliary state vector in place by 
 modifying the water content fields to the prescribed current value.
 """
-function Models.make_update_aux(hydrology::PrescribedHydrologyModel,_)
+function SubComponentModels.make_update_aux(hydrology::PrescribedHydrologyModel,_)
     function update_aux!(Ya,Y, t)
         zc = Ya.soil.zc
         @unpack ϑ_l, θ_i = Ya.soil
@@ -52,14 +52,14 @@ end
 
 
 """
-    Models.make_update_aux(
+    SubComponentModels.make_update_aux(
         mode::AbstractSoilComponentModel
     )
 
 Returns a function which does not update the auxilary state vector.
 This is appropriate for models which do not add auxiliary state variables.
 """
-function Models.make_update_aux(model::AbstractSoilComponentModel, _)
+function SubComponentModels.make_update_aux(model::AbstractSoilComponentModel, _)
     function update_aux!(Ya,Y, t)
         nothing
     end
@@ -68,10 +68,10 @@ end
 
 
 """
-    Models.make_tendency_terms(model::SoilModel{FT, dm, PrescribedTemperatureModel, PrescribedHydrologyModel},) where {FT,dm}
+    SubComponentModels.make_tendency_terms(model::SoilModel{FT, dm, PrescribedTemperatureModel, PrescribedHydrologyModel},) where {FT,dm}
 
 """
-function Models.make_tendency_terms(model::SoilModel{FT, dm, PrescribedTemperatureModel, PrescribedHydrologyModel},lm::LandHydrologyModel) where {FT, dm}
+function SubComponentModels.make_tendency_terms(model::SoilModel{FT, dm, PrescribedTemperatureModel, PrescribedHydrologyModel},lm::LandHydrologyModel) where {FT, dm}
     function tendency_terms!(dY, Y, Ya, t)
         nothing
     end
@@ -79,10 +79,10 @@ function Models.make_tendency_terms(model::SoilModel{FT, dm, PrescribedTemperatu
 end
 
 """
-    Models.make_tendency_terms(model::SoilModel{FT, dm, PrescribedTemperatureModel, SoilHydrologyModel{FT}},) where {FT, dm}
+    SubComponentModels.make_tendency_terms(model::SoilModel{FT, dm, PrescribedTemperatureModel, SoilHydrologyModel{FT}},) where {FT, dm}
 
 """
-function Models.make_tendency_terms(
+function SubComponentModels.make_tendency_terms(
     model::SoilModel{FT, dm, PrescribedTemperatureModel, SoilHydrologyModel{FT}},lm::LandHydrologyModel) where {FT, dm}
     function tendency_terms!(dY, Y, Ya, t)
         hydrology = model.hydrology_model
@@ -105,14 +105,14 @@ function Models.make_tendency_terms(
                     Ref(Ya),
                     bcs,
                     faces,
-                    Ref(model),
+                    Ref(lm),
                     Ref(cspace),
                     t,
                 ),
             )...,
         )
         sp = model.soil_param_set
-        param_set = model.earth_param_set
+        param_set = lm.earth_param_set
         hm = hydrology.hydraulic_model
         @unpack θr = hm
         @unpack ν, S_s = sp
@@ -148,10 +148,10 @@ function Models.make_tendency_terms(
 end
 
 """
-    Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, PrescribedHydrologyModel},) where {FT, dm}
+    SubComponentModels.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, PrescribedHydrologyModel},) where {FT, dm}
 
 """
-function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, PrescribedHydrologyModel},lm::LandHydrologyModel) where {FT, dm}
+function SubComponentModels.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, PrescribedHydrologyModel},lm::LandHydrologyModel) where {FT, dm}
 
     function tendency_terms!(dY, Y, Ya, t)
         energy = model.energy_model
@@ -162,7 +162,7 @@ function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, Pr
 
         # Parameters
         sp = model.soil_param_set
-        param_set = model.earth_param_set
+        param_set = lm.earth_param_set
         @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
 
         # Compute center values of everything
@@ -195,7 +195,7 @@ function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, Pr
                     Ref(Ya),
                     bcs,
                     faces,
-                    Ref(model),
+                    Ref(lm),
                     Ref(cspace),
                     t,
                 ),
@@ -220,10 +220,10 @@ function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, Pr
 end
 
 """
-    Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, SoilHydrologyModel{FT}}, ) where {FT, dm}
+    SubComponentModels.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, SoilHydrologyModel{FT}}, ) where {FT, dm}
 
 """
-function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, SoilHydrologyModel{FT}},lm::LandHydrologyModel) where {FT, dm}
+function SubComponentModels.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, SoilHydrologyModel{FT}},lm::LandHydrologyModel) where {FT, dm}
     function tendency_terms!(dY, Y, Ya, t)
         energy = model.energy_model
         hydrology = model.hydrology_model
@@ -238,7 +238,7 @@ function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, So
 
         # parameters
         sp = model.soil_param_set
-        param_set = model.earth_param_set
+        param_set = lm.earth_param_set
         hm = hydrology.hydraulic_model
         @unpack θr = hm
         @unpack ν, S_s, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = sp
@@ -281,7 +281,7 @@ function Models.make_tendency_terms(model::SoilModel{FT, dm, SoilEnergyModel, So
                     Ref(Ya),
                     bcs,
                     faces,
-                    Ref(model),
+                    Ref(lm),
                     Ref(cspace),
                     t,
                 ),

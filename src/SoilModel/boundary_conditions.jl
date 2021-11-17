@@ -263,7 +263,7 @@ end
         bc::FreeDrainage,
         component::SoilHydrologyModel,
         X_cf::NamedTuple,
-        soil::SoilModel,
+        lm::LandHydrologyModel,
         _...,
     )
 
@@ -274,9 +274,10 @@ function vertical_flux(
     bc::FreeDrainage,
     component::SoilHydrologyModel,
     X_cf::NamedTuple,
-    soil::SoilModel,
+    lm::LandHydrologyModel,
     _...,
-    )
+)
+    soil = lm.soil
     @unpack ϑ_l, θ_i, T = X_cf # [center, face]
     ϑ_l = ϑ_l[1]
     θ_i = θ_i[1]
@@ -305,7 +306,7 @@ end
         bc::Dirichlet,
         component::SoilHydrologyModel,
         X_cf::NamedTuple,
-        soil::SoilModel,
+        lm::LandHydrologyModel,
         dz::AbstractFloat,
         face::Symbol,
     )
@@ -317,11 +318,12 @@ function vertical_flux(
     bc::Dirichlet,
     component::SoilHydrologyModel,
     X_cf::NamedTuple,
-    soil::SoilModel,
+    lm::LandHydrologyModel,
     dz::AbstractFloat,
     face::Symbol,
     _...,
-    )
+)
+    soil = lm.soil
     @unpack ϑ_l, θ_i, T = X_cf # [center, face]
     @unpack ν, S_s = soil.soil_param_set
     hm = component.hydraulic_model
@@ -351,7 +353,7 @@ end
         bc::Dirichlet,
         component::SoilEnergyModel,
         X_cf::NamedTuple,
-        soil::SoilModel,
+        lm::LandHydrologyModel,
         dz::AbstractFloat,
         face::Symbol,
     )
@@ -363,14 +365,15 @@ function vertical_flux(
     bc::Dirichlet,
     component::SoilEnergyModel,
     X_cf::NamedTuple,
-    soil::SoilModel,
+    lm::LandHydrologyModel,
     dz::AbstractFloat,
     face::Symbol,
     _...
     )
     @unpack ϑ_l, θ_i, T = X_cf # [center, face]
     @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = soil.soil_param_set
-    param_set = soil.earth_param_set
+    param_set = lm.earth_param_set
+    soil = lm.soil
     κ_dry = k_dry(param_set, soil.soil_param_set)
 
     ν_eff = ν .- θ_i
@@ -408,13 +411,14 @@ function boundary_fluxes(
     Ya,
     bc::SoilComponentBC,
     face::Symbol,
-    soil::SoilModel,
+    lm::LandHydrologyModel,
     cs,
     t,
-    )
+)
+    soil = lm.soil
     energy = soil.energy_model
     hydrology = soil.hydrology_model
-    T = get_temperature(soil, Y, Ya)
+    T = get_temperature(soil, lm.earth_param_set, Y, Ya)
     ϑ_l, θ_i = get_water_content(hydrology, Y, Ya)
     #need to replace with get water content
     X = Fields.FieldVector(ϑ_l = ϑ_l, θ_i = θ_i, T = T) # blend of state and prescribed variables needed at boundary
@@ -423,15 +427,15 @@ function boundary_fluxes(
     set_boundary_values!(X_cf, bc.hydrology, hydrology, t)
 
     dz = boundary_cf_distance(face, cs)
-    fρe_int = vertical_flux(bc.energy, energy, X_cf, soil, dz, face, Y, Ya)
-    fϑ_l = vertical_flux(bc.hydrology, hydrology, X_cf, soil, dz, face, Y, Ya)
+    fρe_int = vertical_flux(bc.energy, energy, X_cf, lm, dz, face, Y, Ya)
+    fϑ_l = vertical_flux(bc.hydrology, hydrology, X_cf, lm, dz, face, Y, Ya)
     return (fρe_int = fρe_int, fϑ_l = fϑ_l)
 end
 
 function vertical_flux(bc::SurfaceWaterBC,
                        hydrology::SoilHydrologyModel{FT},
                        X_cf,
-                       soil::SoilModel,
+                       lm::LandHydrologyModel,
                        dz::FT,
                        face::Symbol,
                        Y::Fields.FieldVector,

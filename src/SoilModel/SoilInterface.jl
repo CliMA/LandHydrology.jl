@@ -7,10 +7,10 @@ using DocStringExtensions
 using UnPack
 
 using Statistics: mean
-using LandHydrology: EarthParameterSet, LandHydrologyModel
+using LandHydrology: LandHydrologyModel
 using LandHydrology.Domains: AbstractVerticalDomain, make_function_space, Column, coordinates, zero_field
-using LandHydrology.Models: AbstractModel
-import LandHydrology: Models, make_tendency_terms, make_update_aux, initialize_states
+using LandHydrology.SubComponentModels: AbstractModel
+import LandHydrology: SubComponentModels, make_tendency_terms, make_update_aux, initialize_states
 
 include("SoilWaterParameterizations.jl")
 using .SoilWaterParameterizations
