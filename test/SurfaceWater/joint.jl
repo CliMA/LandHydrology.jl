@@ -25,7 +25,7 @@ using DelimitedFiles
 using LandHydrology: PrescribedAtmosState
 using LandHydrology.SurfaceWater: SurfaceWaterModel
 
-@test "No surface water" begin
+@testset "No surface water" begin
     FT = Float64
     
     # General soil composition
@@ -85,7 +85,7 @@ using LandHydrology.SurfaceWater: SurfaceWaterModel
         θ_l = 0.4
         return (ϑ_l = θ_l, θ_i = θ_i)
     end
-    Y, Ya = initialize_land_states(land_model, (;soil =initial_conditions))#,sfc_water = initial_conditions_sfc))
+    Y, Ya = initialize_land_states(land_model, (;soil =initial_conditions))
     land_rhs! = make_rhs(land_model)
     land_sim = Simulation(
         land_model,
@@ -109,7 +109,7 @@ using LandHydrology.SurfaceWater: SurfaceWaterModel
 end
 
 
-@test "With surface water" begin
+@testset "With surface water" begin
     FT = Float64
     
     # General soil composition
@@ -161,7 +161,7 @@ end
     
     
     surface = SurfaceWaterModel{FT}()
-    function initial_conditions_sfc(z, _)
+    function initial_conditions_sfc(z,_...)
         return (;h = 0.0)
     end
     

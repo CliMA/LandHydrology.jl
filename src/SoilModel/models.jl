@@ -145,7 +145,7 @@ function SubComponentModels.default_initial_conditions(
         ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, param_set)
         return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
     end
-    return SubComponentModels.initialize_states(model, ps, default_ic)
+    return SubComponentModels.initialize_states(model, lm, (; :soil => default_ic))
 end
 
 

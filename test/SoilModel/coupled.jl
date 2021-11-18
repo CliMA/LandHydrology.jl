@@ -69,24 +69,23 @@
         ),
         boundary_conditions = bc,
         soil_param_set = msp,
-        earth_param_set = param_set,
     )
 
     
-    land_model = LandHydrologyModel{FT}(soil_model,NotIncluded(),)
+    land_model = LandHydrologyModel{FT}(soil_model,NotIncluded(),param_set)
 
     # initial conditions
-    function initial_conditions(z::FT, model::SoilModel)
-        param_set = model.earth_param_set
+    function initial_conditions(z::ft, model::SoilModel, lm::LandHydrologyModel) where {ft}
+        ps = lm.earth_param_set
         T = 289.0 + 5.0 * z
         θ_i = 0.0
         θ_l = 0.495
         ρcds = model.soil_param_set.ρc_ds
-        ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρcds, param_set)
-        ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, param_set)
+        ρc_s = volumetric_heat_capacity(θ_l, θ_i, ρcds, ps)
+        ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, ps)
         return (ϑ_l = θ_l, θ_i = θ_i, ρe_int = ρe_int)
     end
-    Y, Ya = initialize_states(land_model, (;soil =initial_conditions,))
+    Y, Ya = initialize_land_states(land_model, (;soil =initial_conditions,))
     land_rhs! = make_rhs(land_model)
     prob = ODEProblem(land_rhs!, Y, (t0, tf), Ya)
 
@@ -191,32 +190,31 @@ end
         ),
         boundary_conditions = bc,
         soil_param_set = msp,
-        earth_param_set = param_set,
     )
 
-    Y_init, Ya_init = default_initial_conditions(soil_model)
+    land_model = LandHydrologyModel{FT}(soil_model,NotIncluded(),param_set)
+    Y_init, Ya_init = default_land_initial_conditions(land_model)
     @test parent(Ya_init.soil.zc)[:] ≈ Array(-1.95:0.1:-0.05)
     @test parent(Y_init.soil.ϑ_l)[:] ≈ zeros(20) .+ 0.25
     @test parent(Y_init.soil.θ_i)[:] ≈ zeros(20) .+ 0.0
-    T0 = FT(T_0(soil_model.earth_param_set))
+    T0 = FT(T_0(param_set))
 
     ρc_s =
         volumetric_heat_capacity.(
             Y_init.soil.ϑ_l,
             Y_init.soil.θ_i,
             soil_model.soil_param_set.ρc_ds,
-            Ref(soil_model.earth_param_set),
+            Ref(param_set),
         )
     ρe_int =
         volumetric_internal_energy.(
             Y_init.soil.θ_i,
             ρc_s,
             T0,
-            Ref(soil_model.earth_param_set),
+            Ref(param_set),
         )
     @test parent(Y_init.soil.ρe_int)[:] ≈ parent(ρe_int)[:]
     dY = similar(Y_init)
-    land_model = LandHydrologyModel{FT}(soil_model, NotIncluded())
     soil_rhs! = make_rhs(land_model)
     soil_rhs!(dY, Y_init, Ya_init, 0.0)
     @test parent(dY.soil.θ_i)[:] ≈ zeros(20)

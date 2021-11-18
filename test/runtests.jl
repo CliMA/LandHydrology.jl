@@ -8,9 +8,9 @@ using OrdinaryDiffEq:
     SSPRK33,
     SSPRK73
 using LandHydrology
-using LandHydrology: make_rhs, LandHydrologyModel
-using LandHydrology.Models: default_initial_conditions, make_tendency_terms, make_update_aux, initialize_states, NotIncluded
-using LandHydrology: EarthParameterSet
+using LandHydrology: make_rhs, LandHydrologyModel, default_land_initial_conditions, initialize_land_states
+using LandHydrology.SubComponentModels: default_initial_conditions, make_tendency_terms, make_update_aux, initialize_states, NotIncluded
+struct EarthParameterSet <: AbstractEarthParameterSet end
 const param_set = EarthParameterSet()
 using LandHydrology.Domains: Column, make_function_space
 using LandHydrology.SoilInterface
@@ -24,21 +24,18 @@ using ArtifactWrappers
 using DelimitedFiles
 
 include("test_domains.jl")
-#=
-@testset "LandHydrology unit tests" begin
-end
 
 @testset "Soil+Surface" begin
     @info "Testing the soil and surface model together"
     include("SurfaceWater/joint.jl")
 end
-=#
+
 @testset "Soil Model" begin
     @info "Testing LandHydrology Soil model"
     include("SoilModel/coupled.jl")
     include("SoilModel/richards_equation.jl")
     include("SoilModel/heat_test_interface.jl")
-    include("SoilModel/test_rhs.jl")
     include("SoilModel/test_water_parameterizations.jl")
     include("SoilModel/test_heat_parameterizations.jl")
+    #include("SoilModel/test_rhs.jl")
 end

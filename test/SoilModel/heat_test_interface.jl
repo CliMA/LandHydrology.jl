@@ -48,26 +48,25 @@
         hydrology_model = PrescribedHydrologyModel(),
         boundary_conditions = bc,
         soil_param_set = msp,
-        earth_param_set = param_set,
     )
-    land_model = LandHydrologyModel{FT}(soil_model,NotIncluded(),)
+    land_model = LandHydrologyModel{FT}(soil_model,NotIncluded(),param_set)
     # initial conditions
-    @test_throws ErrorException default_initial_conditions(land_model)
-    function energy_ic(z, model)
-        T = 0.0
-        θ_i = 0.0
-        θ_l = 0.0
+   # @test_throws ErrorException default_initial_conditions(land_model)
+    function energy_ic(z::Ft, model::SoilModel, lm::LandHydrologyModel) where {Ft}
+        T = Ft(0.0)
+        θ_i = Ft(0.0)
+        θ_l = Ft(0.0)
         ρc_s = volumetric_heat_capacity(
             θ_l,
             θ_i,
             model.soil_param_set.ρc_ds,
-            model.earth_param_set,
+            lm.earth_param_set,
         )
-        ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, model.earth_param_set)
+        ρe_int = volumetric_internal_energy(θ_i, ρc_s, T, lm.earth_param_set)
         return (; ρe_int = ρe_int)
     end
 
-    Y, Ya = initialize_states(land_model, (;soil =energy_ic,))
+    Y, Ya = initialize_land_states(land_model, (;soil =energy_ic,))
     land_rhs! = make_rhs(land_model)
     land_sim = Simulation(
         land_model,

@@ -46,18 +46,17 @@
         ),
         boundary_conditions = bc,
         soil_param_set = msp,
-        earth_param_set = param_set,
     )
-    land_model = LandHydrologyModel{FT}(soil_model,NotIncluded(),)
+    land_model = LandHydrologyModel{FT}(soil_model,NotIncluded(),param_set)
     # initial conditions
-    @test_throws ErrorException default_initial_conditions(soil_model)
-    @test_throws ErrorException default_initial_conditions(land_model)
-    function initial_conditions(z, model)
-        θ_i = 0.0
-        θ_l = 0.494
+#    @test_throws ErrorException default_initial_conditions(soil_model, land_model)
+#    @test_throws ErrorException default_land_initial_conditions(land_model)
+    function initial_conditions(z::Ft, model::SoilModel, lm::LandHydrologyModel) where {Ft}
+        θ_i = Ft(0.0)
+        θ_l = Ft(0.494)
         return (ϑ_l = θ_l, θ_i = θ_i)
     end
-    Y, Ya = initialize_states(land_model, (;soil =initial_conditions,))
+    Y, Ya = initialize_land_states(land_model, (;soil =initial_conditions,))
     land_rhs! = make_rhs(land_model)
     land_sim = Simulation(
         land_model,
@@ -140,18 +139,17 @@ end
         ),
         boundary_conditions = bc,
         soil_param_set = msp,
-        earth_param_set = param_set,
     )
-    land_model = LandHydrologyModel{FT}(soil_model,NotIncluded(),)
+    land_model = LandHydrologyModel{FT}(soil_model,NotIncluded(),param_set)
     # initial conditions
-    @test_throws ErrorException default_initial_conditions(land_model)
-    function ic(z, model)
-        θ_i = 0.0
-        θ_l = 0.1
+   # @test_throws ErrorException default_land_initial_conditions(land_model)
+    function ic(z::Ft, model::SoilModel, lm::LandHydrologyModel) where {Ft}
+        θ_i = Ft(0.0)
+        θ_l = Ft(0.1)
         return (ϑ_l = θ_l, θ_i = θ_i)
     end
 
-    Y, Ya = initialize_states(land_model, (;soil =ic,))
+    Y, Ya = initialize_land_states(land_model, (;soil =ic,))
     land_rhs! = make_rhs(land_model)
     land_sim = Simulation(
         land_model,

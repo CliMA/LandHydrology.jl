@@ -28,6 +28,10 @@ Construct the initial conditions for subcomponent `model`, given any additional 
 (e.g. the shared parameter set) stored in the `lm` LandHydrologyModel.
 """
 function default_initial_conditions(model::AbstractModel,lm::AbstractLandModel)
+    if typeof(model) != NotIncluded
+        println("Warning: no default initial conditions for ", model.name, " model.")
+    end
+              
     return nothing, nothing
 end
 
@@ -39,7 +43,7 @@ any additional information required from the `lm` LandHydrologyModel.
 
 Currently, this should return a `Field` type object.
 """
-function initialize_states(model::AbstractModel, lm::AbstractLandModel)
+function initialize_states(model::AbstractModel, lm::AbstractLandModel,land_f::NamedTuple)
     return nothing, nothing
 end
 

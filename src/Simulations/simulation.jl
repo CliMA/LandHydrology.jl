@@ -47,7 +47,7 @@ function Simulation(
         println(
             "Creating default state for both prognostic and auxiliary states...",
         )
-        Y, Ya = default_initial_conditions(model)
+        Y, Ya = default_land_initial_conditions(model)
     else
         Y, Ya = Y_init, Ya_init
     end

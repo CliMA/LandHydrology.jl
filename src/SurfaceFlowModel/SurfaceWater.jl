@@ -54,23 +54,24 @@ Sets up the default initial condition function for the `SurfaceWaterModel`.
 function SubComponentModels.default_initial_conditions(model::SurfaceWaterModel{FT},
                                                        lm::LandHydrologyModel{FT, sm, SurfaceWaterModel{FT}, }
                                                        ) where {FT, sm}
-    function default_ic(z::FT)
+    function default_ic(z::FT, model::SurfaceWaterModel{FT})
         return (; h = FT(0.0))
     end
-    return SubComponentModels.initialize_state(model, default_ic)
+    return SubComponentModels.initialize_states(model, lm, (; :sfc_water => default_ic))
 end
 
 """
     SubComponentModels.initialize_states(model::SurfaceWaterModel{FT},
                                          lm::LandHydrologyModel{FT, sm, SurfaceWaterModel{FT},},
-                                         f::Function) where {FT, sm}
+                                         f::NamedTuple) where {FT, sm}
 
-Given an initial condition function `f`, computes the initial prognostic state of the `SurfaceWaterModel`.
+Given an initial condition function `land_f.sfc_water`, computes the initial prognostic state of the `SurfaceWaterModel`.
 
 """
 function SubComponentModels.initialize_states(model::SurfaceWaterModel{FT},
                                               lm::LandHydrologyModel{FT, sm, SurfaceWaterModel{FT},},
-                                              f::Function) where {FT, sm}
+                                              land_f::NamedTuple) where {FT, sm}
+    f = getproperty(land_f, model.name)
     space_c, _ = make_function_space(model.domain)
     zc = coordinates(space_c)
     return f.(zc, Ref(model)), nothing

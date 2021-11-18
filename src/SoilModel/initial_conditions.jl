@@ -60,16 +60,17 @@ function aux_vars(m::AbstractSoilComponentModel)
 end
 
 """
-     SubComponentModels.initialize_states(model::SoilModel, f::Function, t0::Real)
+     SubComponentModels.initialize_states(model::SoilModel, lm::LandHydrologyModel, land_f::NamedTuple)
 
 This function returns the initial prognostic and auxiliary states for the model,
-given an initial condition function `f` for the prognostic variables, and
+given an initial condition function `land_f.soil` for the prognostic variables, and
 an initial time `t0`. 
 
 In the future, this could be split into two functions, one for aux and one for prognostic variables,
 if we can create the space twice or create the space elsewhere and pass in.
 """
-function SubComponentModels.initialize_states(model::SoilModel, lm::LandHydrologyModel, f::Function)
+function SubComponentModels.initialize_states(model::SoilModel, lm::LandHydrologyModel, land_f::NamedTuple)
+    f = getproperty(land_f, model.name)
     space_c, _ = make_function_space(model.domain)
     zc = coordinates(space_c)
     f_aux = initialize_aux_function(model)

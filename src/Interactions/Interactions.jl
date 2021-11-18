@@ -1,6 +1,6 @@
 module Interactions
 import LandHydrology: SubComponentModels, make_update_aux, AbstractModel
-using LandHydrology: LandHydrologyModel, AbstractAtmosState, NoAtmosState
+using LandHydrology: LandHydrologyModel, AbstractAtmosState, PrescribedAtmosState
 using LandHydrology.SoilInterface: SoilModel, SoilHydrologyModel, Dirichlet, SoilComponentBC, boundary_fluxes
 using LandHydrology.SurfaceWater: SurfaceWaterModel, get_surface_height
 using ClimaCore: Fields

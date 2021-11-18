@@ -138,7 +138,8 @@ function make_rhs(model::LandHydrologyModel)
     return rhs!
 end
 
-
+#### Switch to using `map` for each of these functions below.
+#### Should default_ic throw an error ?
 """
     initialize_land_states(model::LandHydrologyModel, f::NamedTuple)
 
@@ -159,18 +160,15 @@ function initialize_land_states(model::LandHydrologyModel, f::NamedTuple)
     Ya = Dict()
     for sc_name in subcomponents
         sc_model = getproperty(model, sc_name)
-        if typeof(sc_model) != NotIncluded
-            Y_sc, Ya_sc = SubComponentModels.initialize_states(sc_model, model, getproperty(f, sc_name))
-            if sizeof(Y_sc) > 0.0
-                push!(Y, sc_name => Y_sc)
-            end
-            if sizeof(Ya_sc) >0.0
-                push!(Ya, sc_name => Ya_sc)
-            end
+        Y_sc, Ya_sc = SubComponentModels.initialize_states(sc_model, model,f)
+        if sizeof(Y_sc) > 0.0
+            push!(Y, sc_name => Y_sc)
         end
-        
-        
+        if sizeof(Ya_sc) >0.0
+            push!(Ya, sc_name => Ya_sc)
+        end
     end
+
     # do we always want this? should we only add this for certain types?
     push!(Ya, :soil_infiltration => 0.0,)
     return Fields.FieldVector(; Y...),Fields.FieldVector(; Ya...)
@@ -189,19 +187,16 @@ function default_land_initial_conditions(model::LandHydrologyModel)
     Ya = Dict()
     for sc_name in subcomponents
         sc_model = getproperty(model, sc_name)
-        if typeof(sc_model) != NotIncluded
-            Y_sc, Ya_sc = SubComponentModels.default_initial_conditions(sc_model, model)
-            if sizeof(Y_sc) > 0.0
-                push!(Y, sc_name => Y_sc)
-            end
-            if sizeof(Ya_sc) >0.0
-                push!(Ya, sc_name => Ya_sc)
-            end
+        Y_sc, Ya_sc = SubComponentModels.default_initial_conditions(sc_model, model)
+        if sizeof(Y_sc) > 0.0
+            push!(Y, sc_name => Y_sc)
+        end
+        if sizeof(Ya_sc) >0.0
+            push!(Ya, sc_name => Ya_sc)
         end
         
-        
     end
-    # do we always want this? should we only add this for certain types?
+    # do we always want this? should we only add this for certain types? 
     push!(Ya, :soil_infiltration => 0.0,)
     return Fields.FieldVector(; Y...),Fields.FieldVector(; Ya...)
 end

@@ -370,10 +370,10 @@ function vertical_flux(
     face::Symbol,
     _...
     )
+    soil = lm.soil
     @unpack ϑ_l, θ_i, T = X_cf # [center, face]
     @unpack ν, ρc_ds, κ_sat_unfrozen, κ_sat_frozen = soil.soil_param_set
     param_set = lm.earth_param_set
-    soil = lm.soil
     κ_dry = k_dry(param_set, soil.soil_param_set)
 
     ν_eff = ν .- θ_i
