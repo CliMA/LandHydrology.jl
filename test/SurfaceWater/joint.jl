@@ -161,7 +161,7 @@ end
     
     
     surface = SurfaceWaterModel{FT}()
-    function initial_conditions_sfc(z,_...)
+    function initial_conditions_sfc()
         return (;h = 0.0)
     end
     
@@ -192,7 +192,7 @@ end
     sol = land_sim.integrator.sol
     
     z = parent(Ya.soil.zc)
-    h = [parent(sol.u[k].sfc_water.h)[1] for k in 1:520]
+    h = [sol.u[k].sfc_water.h for k in 1:520]
     # seems reasonable
 end
 

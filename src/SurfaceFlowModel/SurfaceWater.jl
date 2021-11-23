@@ -1,10 +1,7 @@
 module SurfaceWater
-using ClimaCore: Fields, Operators
-using LandHydrology.Domains: zero_field
 import LandHydrology: SubComponentModels, make_tendency_terms, default_initial_conditions, make_update_aux, initialize_states, AbstractModel
 using LandHydrology: LandHydrologyModel, PrescribedAtmosState
 using LandHydrology.SoilInterface: SoilModel
-using LandHydrology.Domains: AbstractVerticalDomain, make_function_space, Column, coordinates, zero_field
 export SurfaceWaterModel, get_surface_height
 
 """
@@ -13,11 +10,12 @@ export SurfaceWaterModel, get_surface_height
 A concrete type for a simple surface water model, which keeps track of the height of the surface
 water as a prognostic variable. 
 
-*****The `domain` fields should be reconsidered for non-column models. For column models,
-this shouldn't need to be a Field.
+*****Eventually, we will want a "domain" attribute for each
+submodel, which specifies the coordinates on 
+which the model variables exist. This may or may not need to be a field, depending
+on the model.
 """
 Base.@kwdef struct SurfaceWaterModel{FT<:AbstractFloat} <: AbstractModel
-    domain::Column = Column(;zlim = (-0.05,0.05),nelements=1)
     name::Symbol = :sfc_water
 end
 
@@ -37,8 +35,7 @@ function SubComponentModels.make_tendency_terms(model::SurfaceWaterModel{FT},
                                     ) where {FT, sm}
     function tendency_terms!(dY, Y, Ya, t)
         infiltration = Ya.soil_infiltration
-        cs = axes(Y.sfc_water.h)
-        dY.sfc_water.h .= zero_field(FT, cs) .-(lm.atmos_state.precipitation - infiltration)
+        dY.sfc_water.h = -(lm.atmos_state.precipitation - infiltration)
     end
     
     return tendency_terms!
@@ -54,7 +51,7 @@ Sets up the default initial condition function for the `SurfaceWaterModel`.
 function SubComponentModels.default_initial_conditions(model::SurfaceWaterModel{FT},
                                                        lm::LandHydrologyModel{FT, sm, SurfaceWaterModel{FT}, }
                                                        ) where {FT, sm}
-    function default_ic(z::FT, model::SurfaceWaterModel{FT})
+    function default_ic(model::SurfaceWaterModel{FT})
         return (; h = FT(0.0))
     end
     return SubComponentModels.initialize_states(model, lm, (; :sfc_water => default_ic))
@@ -72,9 +69,10 @@ function SubComponentModels.initialize_states(model::SurfaceWaterModel{FT},
                                               lm::LandHydrologyModel{FT, sm, SurfaceWaterModel{FT},},
                                               land_f::NamedTuple) where {FT, sm}
     f = getproperty(land_f, model.name)
-    space_c, _ = make_function_space(model.domain)
-    zc = coordinates(space_c)
-    return f.(zc, Ref(model)), nothing
+    # Get coordinates of the model, from model.domain
+    # Evaluate initial conditions at those coordinates
+    # For now, dont need to do this.
+    return f(), nothing
 end
 
 """
@@ -83,7 +81,7 @@ end
 Helper function which returns the height of the surface water.
 """
 function get_surface_height(model::SurfaceWaterModel{FT}, Y) where {FT}
-    return Operators.getidx(Y.sfc_water.h, Operators.Interior(),1)
+    return Y.sfc_water.h
 end
 
 """
