@@ -170,12 +170,8 @@ function make_rhs(
         interpc2f = Operators.InterpolateC2F()
         gradc2f_water = Operators.GradientC2F()
         divf2c_water = Operators.DivergenceF2C(
-            top = Operators.SetValue(
-                Geometry.Cartesian3Vector(fluxes.top.fϑ_l),
-            ),
-            bottom = Operators.SetValue(
-                Geometry.Cartesian3Vector(fluxes.bottom.fϑ_l),
-            ),
+            top = Operators.SetValue(Geometry.WVector(fluxes.top.fϑ_l)),
+            bottom = Operators.SetValue(Geometry.WVector(fluxes.bottom.fϑ_l)),
         )
 
         @. dϑ_l = -(divf2c_water(-interpc2f(K) * gradc2f_water(h))) #Richards equation
@@ -249,11 +245,9 @@ function make_rhs(
         interpc2f = Operators.InterpolateC2F()
         gradc2f_heat = Operators.GradientC2F()
         divf2c_heat = Operators.DivergenceF2C(
-            top = Operators.SetValue(
-                Geometry.Cartesian3Vector(fluxes.top.fρe_int),
-            ),
+            top = Operators.SetValue(Geometry.WVector(fluxes.top.fρe_int)),
             bottom = Operators.SetValue(
-                Geometry.Cartesian3Vector(fluxes.bottom.fρe_int),
+                Geometry.WVector(fluxes.bottom.fρe_int),
             ),
         )
         @. dρe_int = -divf2c_heat(-interpc2f(κ) * gradc2f_heat(T))
@@ -337,22 +331,16 @@ function make_rhs(
         interpc2f = Operators.InterpolateC2F()
         gradc2f_heat = Operators.GradientC2F()
         divf2c_heat = Operators.DivergenceF2C(
-            top = Operators.SetValue(
-                Geometry.Cartesian3Vector(fluxes.top.fρe_int),
-            ),
+            top = Operators.SetValue(Geometry.WVector(fluxes.top.fρe_int)),
             bottom = Operators.SetValue(
-                Geometry.Cartesian3Vector(fluxes.bottom.fρe_int),
+                Geometry.WVector(fluxes.bottom.fρe_int),
             ),
         )
 
         gradc2f_water = Operators.GradientC2F()
         divf2c_water = Operators.DivergenceF2C(
-            top = Operators.SetValue(
-                Geometry.Cartesian3Vector(fluxes.top.fϑ_l),
-            ),
-            bottom = Operators.SetValue(
-                Geometry.Cartesian3Vector(fluxes.bottom.fϑ_l),
-            ),
+            top = Operators.SetValue(Geometry.WVector(fluxes.top.fϑ_l)),
+            bottom = Operators.SetValue(Geometry.WVector(fluxes.bottom.fϑ_l)),
         )
 
         @. dϑ_l = -divf2c_water(-interpc2f(K) * gradc2f_water(h)) #Richards equation
