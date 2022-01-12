@@ -130,7 +130,7 @@ savefig("absolute_water_content.png")
 # Convert soln to volumetric water content and plot
 y_theta_1 = y_1/size_reservoir_stem_moles
 y_theta_2 = y_2/size_reservoir_leaf_moles
-plot(sol.t, y_theta_1, label="stem", xaxis="t [day]", yaxis="relative water content [m3/m3]",dpi=500)
+plot(sol.t, y_theta_1, label="stem", xaxis="t [s]", yaxis="relative water content [m3/m3]",dpi=500)
 plot!(sol.t, y_theta_2, label="leaf", dpi=500)
 savefig("relative_water_content.png") 
 
@@ -151,7 +151,7 @@ for i in tlength
 end
 
 # Plot pressure in stem and leaves as function of time [MPa]
-plot(sol.t,p_stem,linewidth=2,xaxis="time [day]",yaxis="pressure [MPa]",label="stem",dpi=500)
+plot(sol.t,p_stem,linewidth=2,xaxis="time [s]",yaxis="pressure [MPa]",label="stem",dpi=500)
 plot!(sol.t,p_leaf,linewidth=2,label="leaf",dpi=500)
 plot!(sol.t,p_stem_ini.*ones(length(sol.t),1),label="p_stem_0",dpi=500)
 plot!(sol.t,p_leaf_ini.*ones(length(sol.t),1),label="p_leaf_0",dpi=500)
@@ -162,7 +162,7 @@ u_do, u_up, A, B, flow_in_stem_approx = vc_integral_approx(z_soil, z_bottom_stem
 flow_in_stem = vc_integral(u_do, u_up, A, B, flow_in_stem_approx) 
 u_do, u_up, A, B, flow_out_stem_approx = vc_integral_approx(z_bottom_stem, z_leaf, p_stem, p_leaf, a_stem, b_stem, K_max_stem_moles)
 flow_out_stem = vc_integral(u_do, u_up, A, B, flow_out_stem_approx) 
-plot(sol.t,flow_in_stem,linewidth=2,xaxis="time [day]",yaxis="flow [mol s-1]",label="flow into stem",legend=:bottomright,dpi=500)
+plot(sol.t,flow_in_stem,linewidth=2,xaxis="time [s]",yaxis="flow [mol s-1]",label="flow into stem",legend=:bottomright,dpi=500)
 plot!(sol.t,flow_out_stem,linewidth=2,label="flow into leaves",dpi=500)
 plot!(sol.t,T,linewidth=2,label="transpiration boundary condition",dpi=500)
 #savefig("flow.png") 
